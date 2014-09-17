@@ -77,7 +77,7 @@ class SGD(object):
                                                 dtype=x.dtype),
                                     name=x.name) for x in model.inputs]
 
-	if 'profile' not in self.state:
+        if 'profile' not in self.state:
             self.state['profile'] = 0
 
         ###################################
@@ -222,8 +222,8 @@ class SGD(object):
         """
         vals = numpy.load(filename)
         for i in xrange(len(self.model.params)):
-	    p = self.model.params[i]
-	    self.gs[i].set_value(vals[p.name])
-	    self.gnorm2[i].set_value(vals[p.name+'_g2'])
-	    self.dnorm2[i].set_value(vals[p.name+'_d2'])
+            p = self.model.params[i]
+            self.gs[i].set_value(vals[p.name])
+            self.gnorm2[i].set_value(vals[p.name+'_g2'])
+            self.dnorm2[i].set_value(vals[p.name+'_d2'])
         #TODO Error check

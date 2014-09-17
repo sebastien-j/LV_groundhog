@@ -117,7 +117,7 @@ class MainLoop(object):
             hooks = [hooks]
 
         if 'save_algo' not in self.state:
-	    self.state['save_algo'] = 0
+            self.state['save_algo'] = 0
 
         if self.state['validFreq'] < 0:
             self.state['validFreq'] = self.train_data.get_length()
@@ -233,12 +233,12 @@ class MainLoop(object):
         if self.state['overwrite']:
             self.model.save(self.state['prefix']+'model.npz')
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
-	        self.algo.save(self.state['prefix']+'algo.npz')
+                self.algo.save(self.state['prefix']+'algo.npz')
         else:
             self.model.save(self.state['prefix'] +
                             'model%d.npz' % self.save_iter)
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
-	        self.algo.save(self.state['prefix']+'algo%d.npz' % self.save_iter)
+                self.algo.save(self.state['prefix']+'algo%d.npz' % self.save_iter)
         cPickle.dump(self.state, open(self.state['prefix']+'state.pkl', 'w'))
         self.save_iter += 1
         signal.signal(signal.SIGINT, s)
