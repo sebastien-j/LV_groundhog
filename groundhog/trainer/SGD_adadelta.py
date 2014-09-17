@@ -206,3 +206,24 @@ class SGD(object):
                        ('time_step', float(g_ed - g_st)),
                        ('whole_time', float(whole_time))]+zip(self.prop_names, rvals))
         return ret
+
+    def save(self, filename):
+        """
+        Save the trainer parameters to file `filename`
+        """
+        vals = dict([(self.gs[i].name, self.gs[i].get_value()) for i in xrange(len(self.model.params))])
+        vals.update([(self.gnorm2[i].name, self.gnorm2[i].get_value()) for i in xrange(len(self.model.params))])
+        vals.update([(self.dnorm2[i].name, self.dnorm2[i].get_value()) for i in xrange(len(self.model.params))])
+        numpy.savez(filename, **vals)
+
+    def load(self, filename):
+        """
+        Load the trainer parameters.
+        """
+        vals = numpy.load(filename)
+        for i in xrange(len(self.model.params)):
+	    p = self.model.params[i]
+	    self.gs[i].set_value(vals[p.name])
+	    self.gnorm2[i].set_value(vals[p.name+'_g2'])
+	    self.dnorm2[i].set_value(vals[p.name+'_d2'])
+        #TODO Error check

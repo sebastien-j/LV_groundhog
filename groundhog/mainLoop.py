@@ -116,6 +116,9 @@ class MainLoop(object):
         if hooks and not isinstance(hooks, (list, tuple)):
             hooks = [hooks]
 
+        if 'save_algo' not in self.state:
+	    self.state['save_algo'] = 0
+
         if self.state['validFreq'] < 0:
             self.state['validFreq'] = self.train_data.get_length()
             print 'Validation computed every', self.state['validFreq']
@@ -229,9 +232,13 @@ class MainLoop(object):
                     **self.timings)
         if self.state['overwrite']:
             self.model.save(self.state['prefix']+'model.npz')
+            if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
+	        self.algo.save(self.state['prefix']+'algo.npz')
         else:
             self.model.save(self.state['prefix'] +
                             'model%d.npz' % self.save_iter)
+            if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
+	        self.algo.save(self.state['prefix']+'algo%d.npz' % self.save_iter)
         cPickle.dump(self.state, open(self.state['prefix']+'state.pkl', 'w'))
         self.save_iter += 1
         signal.signal(signal.SIGINT, s)
@@ -239,11 +246,13 @@ class MainLoop(object):
         print "Model saved, took {}".format(time.time() - start)
 
     # FIXME
-    def load(self, model_path=None, timings_path=None):
+    def load(self, model_path=None, timings_path=None, algo_path=None):
         if model_path is None:
             model_path = self.state['prefix'] + 'model.npz'
         if timings_path is None:
             timings_path = self.state['prefix'] + 'timing.npz'
+        if algo_path is None:
+            algo_path = self.state['prefix'] + 'algo.npz'
         try:
             self.model.load(model_path)
         except Exception:
@@ -253,6 +262,11 @@ class MainLoop(object):
             self.timings = dict(numpy.load(timings_path).iteritems())
         except Exception:
             print 'mainLoop: Corrupted timings file'
+            traceback.print_exc()
+        try:
+            self.algo.load(algo_path)
+        except Exception:
+            print 'mainLoop: Corrupted algo file'
             traceback.print_exc()
 
     def main(self):
