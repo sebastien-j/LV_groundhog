@@ -211,8 +211,7 @@ class SGD(object):
         """
         Save the trainer parameters to file `filename`
         """
-        vals = dict([(self.gs[i].name, self.gs[i].get_value()) for i in xrange(len(self.model.params))])
-        vals.update([(self.gnorm2[i].name, self.gnorm2[i].get_value()) for i in xrange(len(self.model.params))])
+        vals = dict([(self.gnorm2[i].name, self.gnorm2[i].get_value()) for i in xrange(len(self.model.params))])
         vals.update([(self.dnorm2[i].name, self.dnorm2[i].get_value()) for i in xrange(len(self.model.params))])
         numpy.savez(filename, **vals)
 
@@ -223,7 +222,6 @@ class SGD(object):
         vals = numpy.load(filename)
         for i in xrange(len(self.model.params)):
             p = self.model.params[i]
-            self.gs[i].set_value(vals[p.name])
             self.gnorm2[i].set_value(vals[p.name+'_g2'])
             self.dnorm2[i].set_value(vals[p.name+'_d2'])
         #TODO Error check
