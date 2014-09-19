@@ -138,15 +138,26 @@ def get_batch_iterator(state, rng):
             self.peeked_batch = None
 
         def get_homogenous_batch_iter(self):
-            while True:
+            stop = False
+            while not stop:
                 k_batches = state['sort_k_batches']
                 batch_size = state['bs']
-                data = [PytablesBitextIterator.next(self) for k in range(k_batches)]
-                x = numpy.asarray(list(itertools.chain(*map(operator.itemgetter(0), data))))
-                y = numpy.asarray(list(itertools.chain(*map(operator.itemgetter(1), data))))
-                lens = numpy.asarray([map(len, x), map(len, y)])
-                order = numpy.argsort(lens.max(axis=0)) if state['sort_k_batches'] > 1 \
-                        else numpy.arange(len(x))
+                #data = [PytablesBitextIterator.next(self) for k in range(k_batches)]
+                data = []
+                for k in range(k_batches):
+                    n = PytablesBitextIterator.next(self)
+                    if n is not None:
+                        data.append(n)
+                    else:
+                        k_batches = k
+                        stop = True
+                        break
+                if k_batches != 0:
+                    x = numpy.asarray(list(itertools.chain(*map(operator.itemgetter(0), data))))
+                    y = numpy.asarray(list(itertools.chain(*map(operator.itemgetter(1), data))))
+                    lens = numpy.asarray([map(len, x), map(len, y)])
+                    order = numpy.argsort(lens.max(axis=0)) if state['sort_k_batches'] > 1 \
+                            else numpy.arange(len(x))
                 for k in range(k_batches):
                     indices = order[k * batch_size:(k + 1) * batch_size]
                     batch = create_padded_batch(state, [x[indices]], [y[indices]],
