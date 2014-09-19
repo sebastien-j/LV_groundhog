@@ -150,7 +150,7 @@ def get_batch_iterator(state, rng):
                         data.append(n)
                     else:
                         k_batches = k
-                        stop = True
+                        stop = True # Will be reverted if self.use_infinite_loop is True
                         break
                 if k_batches != 0:
                     x = numpy.asarray(list(itertools.chain(*map(operator.itemgetter(0), data))))
@@ -164,6 +164,9 @@ def get_batch_iterator(state, rng):
                             return_dict=True)
                     if batch:
                         yield batch
+                if stop and self.use_infinite_loop:
+                    stop = False
+                    k_batches = state['sort_k_batches']
 
         def next(self, peek=False):
             if not self.batch_iter:

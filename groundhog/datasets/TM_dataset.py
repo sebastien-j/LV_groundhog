@@ -199,9 +199,10 @@ class PytablesBitextFetcher(threading.Thread):
                 if offset == data_len:
                     if diter.use_infinite_loop:
                         offset = 0
+                        last_batch = True
                     else:
                         last_batch = True
-                        break
+                    break
 
                 slen, spos = source_index[offset]['length'], source_index[offset]['pos']
                 tlen, tpos = target_index[offset]['length'], target_index[offset]['pos']
@@ -215,8 +216,11 @@ class PytablesBitextFetcher(threading.Thread):
             if len(source_sents):
                 diter.queue.put([int(offset), source_sents, target_sents])
             if last_batch:
-                diter.queue.put(None)
-                return
+                if diter.use_infinite_loop:
+                    diter.queue.put(None)
+                else:
+                    diter.queue.put(None)
+                    return
 
 class PytablesBitextIterator(object):
 
