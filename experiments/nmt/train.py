@@ -7,6 +7,7 @@ import pprint
 
 import numpy
 
+from groundhog.utils import sample_zeros, sample_weights_orth, init_bias, sample_weights_classic
 from groundhog.trainer.SGD_adadelta import SGD as SGD_adadelta
 from groundhog.trainer.SGD import SGD as SGD
 from groundhog.trainer.SGD_momentum import SGD as SGD_momentum
@@ -60,6 +61,22 @@ def parse_args():
     parser.add_argument("changes",  nargs="*", help="Changes to state", default="")
     return parser.parse_args()
 
+def init_extra_parameters(model, state): # May want to add skip_init later
+    model.large_W0_enc_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_source'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
+    model.large_W0_dec_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_target'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
+    model.large_W2_dec_deep_softmax = eval(state['weight_init_fn'])(state['rank_n_approx'], state['large_vocab_target'], -1, state['weight_scale'], model.rng)
+    model.large_b_dec_deep_softmax = init_bias(state['large_vocab_target'], 0., model.rng)
+
+def init_adadelta_extra_parameters(algo):
+    algo.large_W0_enc_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W0_enc_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W0_dec_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W0_dec_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W2_dec_deep_softmax_g2 = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W2_dec_deep_softmax_d2 = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_b_dec_deep_softmax_g2 = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
+    algo.large_b_dec_deep_softmax_d2 = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
+
 def main():
     args = parse_args()
 
@@ -85,6 +102,14 @@ def main():
     train_data = get_batch_iterator(state, rng)
     logger.debug("Compile trainer")
     algo = eval(state['algo'])(lm_model, state, train_data)
+
+    if 'rolling_vocab' not in state:
+        state['rolling_vocab'] = 0
+    if state['rolling_vocab']:
+        logger.debug("Initializing extra parameters")
+        init_extra_parameters(lm_model, state)
+        init_adadelta_extra_parameters(algo)
+    
     logger.debug("Run training")
     main = MainLoop(train_data, None, None, lm_model, algo, state, None,
             reset=state['reset'],
