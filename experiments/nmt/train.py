@@ -109,7 +109,7 @@ def main():
         logger.debug("Initializing extra parameters")
         init_extra_parameters(lm_model, state)
         init_adadelta_extra_parameters(algo)
-    
+
     logger.debug("Run training")
     main = MainLoop(train_data, None, None, lm_model, algo, state, None,
             reset=state['reset'],

@@ -24,6 +24,7 @@ from groundhog.layers import\
 from groundhog.models import LM_Model
 from groundhog.datasets import PytablesBitextIterator
 from groundhog.utils import sample_zeros, sample_weights_orth, init_bias, sample_weights_classic
+from groundhog.utils import name2pos
 import groundhog.utils as utils
 
 logger = logging.getLogger(__name__)
@@ -1407,6 +1408,7 @@ class RNNEncoderDecoder(object):
             indx_word_src=self.state['indx_word'],
             rng=self.rng)
         self.lm_model.load_dict(self.state)
+        self.lm_model.name2pos = name2pos(self.lm_model.params)
         logger.debug("Model params:\n{}".format(
             pprint.pformat(sorted([p.name for p in self.lm_model.params]))))
         return self.lm_model

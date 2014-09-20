@@ -198,3 +198,17 @@ def replace_array(in_array, mapping):
         for j in xrange(numpy.shape(in_array)[1]):
             out_array[i,j] = mapping[in_array[i,j]]
     return out_array
+
+def name2pos(param_list):
+    d = {}
+    i = 0
+    for p in param_list:
+        d[p.name] = i
+        i += 1
+
+def invert_dict(d):
+    inv_d = {}
+    for key in d:
+        inv_d[d[key]] = key
+    assert len(d) == len(inv_d) # Check for uniqueness
+    return inv_d

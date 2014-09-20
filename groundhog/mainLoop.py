@@ -34,6 +34,7 @@ import time
 import signal
 
 from groundhog.utils import print_mem, print_time
+from grounghog.utils import invert_dict
 
 
 class MainLoop(object):
@@ -268,6 +269,116 @@ class MainLoop(object):
         except Exception:
             print 'mainLoop: Corrupted algo file'
             traceback.print_exc()
+
+def roll_vocab(self, new_large2small_src, new_large2small_trgt):
+
+    ###############
+    # SAVE PARAMS #
+    ###############
+    temp = self.model.W0_enc_approx_embdr.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
+    for large in self.model.large2small_src:
+        small = self.model.large2small_src[large]
+        self.model.large_W0_enc_approx_embdr[large] = temp[small]
+        self.algo.large_W0_enc_approx_embdr_g2[large] = temp_g2[small]
+        self.algo.large_W0_enc_approx_embdr_d2[large] = temp_d2[small]
+
+    temp = self.model.W0_dec_approx_embdr.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_dec_approx_embdr']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_dec_approx_embdr']].get_value()
+    for large in self.model.large2small_trgt:
+        small = self.model.large2small_trgt[large]
+        self.model.large_W0_dec_approx_embdr[large] = temp[small]
+        self.algo.large_W0_dec_approx_embdr_g2[large] = temp_g2[small]
+        self.algo.large_W0_dec_approx_embdr_d2[large] = temp_d2[small]
+
+    temp = self.model.W2_dec_deep_softmax.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+    for large in self.model.large2small_trgt:
+        small = self.model.large2small_trgt[large]
+        self.model.large_W2_dec_deep_softmax[:,large] = temp[:,small]
+        self.algo.large_W2_dec_deep_softmax_g2[:,large] = temp_g2[:,small]
+        self.algo.large_W2_dec_deep_softmax_d2[:,large] = temp_d2[:,small]
+
+    temp = self.model.b_dec_deep_softmax.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+    for large in self.model.large2small_trgt:
+        small = self.model.large2small_trgt[large]
+        self.model.large_b_dec_deep_softmax[large] = temp[small]
+        self.algo.large_b_dec_deep_softmax_g2[large] = temp_g2[small]
+        self.algo.large_b_dec_deep_softmax_d2[large] = temp_d2[small]
+
+    #######################
+    # UPDATE DICTIONARIES #
+    #######################
+    self.model.large2small_src = new_large2small_src
+    self.model.large2small_trgt = new_large2small_trgt
+
+    self.model.small2large_src = invert_dict(self.model.large2small_src)
+    self.model.small2large_trgt = invert_dict(self.model.large2small_trgt)
+
+    self.model.word_indxs_src = {} # small index to word
+    self.model.word_indxs_trgt = {}
+    for small in self.model.small2large_src:
+        large = self.model.small2large_src[small]
+        self.model.word_indxs_src[small] = self.model.large2word_src[large]
+    for small in self.model.small2large_trgt:
+        large = self.model.small2large_trgt[small]
+        self.model.word_indxs_trgt[small] = self.model.large2word_trgt[large]
+
+    ###############
+    # LOAD PARAMS #
+    ###############
+    temp = self.model.W0_enc_approx_embdr.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
+    for small in self.model.small2large_src:
+        large = self.model.small2large_src[small]
+        temp[small] = self.model.large_W0_enc_approx_embdr[large]
+        temp_g2[small] = self.algo.large_W0_enc_approx_embdr_g2[large]
+        temp_d2[small] = self.algo.large_W0_enc_approx_embdr_d2[large]
+    self.model.W0_enc_approx_embdr.set_value(temp)
+    self.algo.gnorm2[self.model.name2pos['W0_enc_approx_embdr']].set_value(temp_g2)
+    self.algo.dnorm2[self.model.name2pos['W0_enc_approx_embdr']].set_value(temp_d2)
+
+    temp = self.model.W0_dec_approx_embdr.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_dec_approx_embdr']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_dec_approx_embdr']].get_value()
+    for small in self.model.small2large_trgt:
+        large = self.model.small2large_trgt[small]
+        temp[small] = self.model.large_W0_dec_approx_embdr[large]
+        temp_g2[small] = self.algo.large_W0_dec_approx_embdr_g2[large]
+        temp_d2[small] = self.algo.large_W0_dec_approx_embdr_d2[large]
+    self.model.W0_dec_approx_embdr.set_value(temp)
+    self.algo.gnorm2[self.model.name2pos['W0_dec_approx_embdr']].set_value(temp_g2)
+    self.algo.dnorm2[self.model.name2pos['W0_dec_approx_embdr']].set_value(temp_d2)
+
+    temp = self.model.W2_dec_deep_softmax.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+    for small in self.model.small2large_trgt:
+        large = self.model.small2large_trgt[small]
+        temp[:,small] = self.model.large_W2_dec_deep_softmax[:,large]
+        temp_g2[:,small] = self.algo.large_W2_dec_deep_softmax_g2[:,large]
+        temp_d2[:,small] = self.algo.large_W2_dec_deep_softmax_d2[:,large]
+    self.model.W2_dec_deep_softmax.set_value(temp)
+    self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_g2)
+    self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_d2)
+
+    temp = self.model.b_dec_deep_softmax.get_value()
+    temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+    temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+    for small in self.model.small2large_trgt:
+        large = self.model.small2large_trgt[small]
+        temp[small] = self.model.large_b_dec_deep_softmax[large]
+        temp_g2[small] = self.algo.large_b_dec_deep_softmax_g2[large]
+        temp_d2[small] = self.algo.large_b_dec_deep_softmax_d2[large]
+    self.model.b_dec_deep_softmax.set_value(temp)
+    self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_g2)
+    self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_d2)
 
     def main(self):
         assert self.reset == -1
