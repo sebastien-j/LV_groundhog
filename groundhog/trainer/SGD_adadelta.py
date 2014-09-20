@@ -20,6 +20,7 @@ from theano.sandbox.scan import scan
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from groundhog.utils import print_time, print_mem, const
+from groundhog.utils import replace_array
 
 logger = logging.getLogger(__name__)
 
@@ -159,9 +160,16 @@ class SGD(object):
                         'whole_time', 'lr']
         self.prev_batch = None
 
+    def transform_batch(self, batch): # Assumes batch is a dictionary
+        batch['x'] = replace_array(batch['x'], self.model.large2small_src)
+        batch['y'] = replace_array(batch['y'], self.model.large2small_trgt)
+
     def __call__(self):
         batch = self.data.next()
         assert batch
+        
+        if self.state['rolling_vocab']:
+            transform_batch(batch)
 
         # Perturb the data (! and the model)
         if isinstance(batch, dict):
