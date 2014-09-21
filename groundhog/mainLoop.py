@@ -34,7 +34,7 @@ import time
 import signal
 
 from groundhog.utils import print_mem, print_time
-from grounghog.utils import invert_dict
+from groundhog.utils import invert_dict
 
 
 class MainLoop(object):
