@@ -235,11 +235,15 @@ class MainLoop(object):
             self.model.save(self.state['prefix']+'model.npz')
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
                 self.algo.save(self.state['prefix']+'algo.npz')
+            if self.state['rolling_vocab']:
+                self.save_large_params(self.state['prefix']+'large.npz')
         else:
             self.model.save(self.state['prefix'] +
                             'model%d.npz' % self.save_iter)
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
                 self.algo.save(self.state['prefix']+'algo%d.npz' % self.save_iter)
+            if self.state['rolling_vocab']:
+                self.save_large_params(self.state['prefix']+'large%d.npz' % self.save_iter)
         cPickle.dump(self.state, open(self.state['prefix']+'state.pkl', 'w'))
         self.save_iter += 1
         signal.signal(signal.SIGINT, s)
@@ -247,13 +251,17 @@ class MainLoop(object):
         print "Model saved, took {}".format(time.time() - start)
 
     # FIXME
-    def load(self, model_path=None, timings_path=None, algo_path=None):
+    def load(self, model_path=None, timings_path=None, algo_path=None, large_path=None):
         if model_path is None:
             model_path = self.state['prefix'] + 'model.npz'
         if timings_path is None:
             timings_path = self.state['prefix'] + 'timing.npz'
-        if algo_path is None:
-            algo_path = self.state['prefix'] + 'algo.npz'
+        if self.state['save_algo']:
+            if algo_path is None:
+                algo_path = self.state['prefix'] + 'algo.npz'
+        if self.state['rolling_vocab']:
+            if large_path is None:
+                large_path = self.state['prefix'] + 'large.npz'
         try:
             self.model.load(model_path)
         except Exception:
@@ -264,16 +272,65 @@ class MainLoop(object):
         except Exception:
             print 'mainLoop: Corrupted timings file'
             traceback.print_exc()
-        try:
-            self.algo.load(algo_path)
-        except Exception:
-            print 'mainLoop: Corrupted algo file'
-            traceback.print_exc()
+        if self.state['save_algo']:
+            try:
+                self.algo.load(algo_path)
+            except Exception:
+                print 'mainLoop: Corrupted algo file'
+                traceback.print_exc()
+        if self.state['rolling_vocab']:
+            try:
+                self.load_large_params(large_path)
+            except Exception:
+                print 'mainLoop: Corrupted large parameters file'
+                traceback.print_exc()
+
+    def save_large_params(self, filename):
+        """
+        Save the large vocabulary params (and adadelta params) to file `filename`
+        """
+        vals = {}
+        vals['large_W0_enc_approx_embdr'] = self.model.large_W0_enc_approx_embdr
+        vals['large_W0_dec_approx_embdr'] = self.model.large_W0_dec_approx_embdr
+        vals['large_W2_dec_deep_softmax'] = self.model.large_W2_dec_deep_softmax
+        vals['large_b_dec_deep_softmax'] = self.model.large_W2_dec_deep_softmax
+        
+        if self.state['save_algo']:
+            vals['large_W0_enc_approx_embdr_g2'] = self.algo.large_W0_enc_approx_embdr_g2
+            vals['large_W0_dec_approx_embdr_g2'] = self.algo.large_W0_dec_approx_embdr_g2
+            vals['large_W2_dec_deep_softmax_g2'] = self.algo.large_W2_dec_deep_softmax_g2
+            vals['large_b_dec_deep_softmax_g2'] = self.algo.large_W2_dec_deep_softmax_g2
+
+            vals['large_W0_enc_approx_embdr_d2'] = self.algo.large_W0_enc_approx_embdr_d2
+            vals['large_W0_dec_approx_embdr_d2'] = self.algo.large_W0_dec_approx_embdr_d2
+            vals['large_W2_dec_deep_softmax_d2'] = self.algo.large_W2_dec_deep_softmax_d2
+            vals['large_b_dec_deep_softmax_d2'] = self.algo.large_b_dec_deep_softmax_d2
+        
+        numpy.savez(filename, **vals)
+
+    def load_large_params(self, filename):
+        """
+        Load the large vocabulary params (and adadelta params) from file `filename`
+        """
+        vals = numpy.load(filename)
+        self.model.large_W0_enc_approx_embdr = vals['large_W0_enc_approx_embdr']
+        self.model.large_W0_dec_approx_embdr = vals['large_W0_dec_approx_embdr']
+        self.model.large_W2_dec_deep_softmax = vals['large_W2_dec_deep_softmax']
+        self.model.large_b_dec_deep_softmax = vals['large_b_dec_deep_softmax']
+        
+        if self.state['save_algo']:
+            self.algo.large_W0_enc_approx_embdr_g2 = vals['large_W0_enc_approx_embdr_g2']
+            self.algo.large_W0_dec_approx_embdr_g2 = vals['large_W0_dec_approx_embdr_g2']
+            self.algo.large_W2_dec_deep_softmax_g2 = vals['large_W2_dec_deep_softmax_g2']
+            self.algo.large_b_dec_deep_softmax_g2 = vals['large_b_dec_deep_softmax_g2']
+
+            self.algo.large_W0_enc_approx_embdr_d2 = vals['large_W0_enc_approx_embdr_d2']
+            self.algo.large_W0_dec_approx_embdr_d2 = vals['large_W0_dec_approx_embdr_d2']
+            self.algo.large_W2_dec_deep_softmax_d2 = vals['large_W2_dec_deep_softmax_d2']
+            self.algo.large_b_dec_deep_softmax_d2 = vals['large_b_dec_deep_softmax_d2']
 
     def roll_vocab_small2large(self):
-        ###############
-        # SAVE PARAMS #
-        ###############
+        # Transfer from small to large parameters
         temp = self.model.W0_enc_approx_embdr.get_value()
         temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
         temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
@@ -311,9 +368,7 @@ class MainLoop(object):
             self.algo.large_b_dec_deep_softmax_d2[large] = temp_d2[small]
 
     def roll_vocab_update_dicts(self, new_large2small_src, new_large2small_trgt):
-        #######################
-        # UPDATE DICTIONARIES #
-        #######################
+        # Update dictionaries
         self.model.large2small_src = new_large2small_src
         self.model.large2small_trgt = new_large2small_trgt
 
@@ -330,9 +385,7 @@ class MainLoop(object):
             self.model.word_indxs_trgt[small] = self.model.large2word_trgt[large]
 
     def roll_vocab_large2small(self):
-        ###############
-        # LOAD PARAMS #
-        ###############
+        # Transfer from large to small parameters
         temp = self.model.W0_enc_approx_embdr.get_value()
         temp_g2 = self.algo.gnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
         temp_d2 = self.algo.dnorm2[self.model.name2pos['W0_enc_approx_embdr']].get_value()
