@@ -4,6 +4,7 @@ import argparse
 import cPickle
 import logging
 import pprint
+import shelve
 
 import numpy
 
@@ -108,6 +109,9 @@ def main():
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
     logger.debug("State:\n{}".format(pprint.pformat(state)))
 
+    if 'rolling_vocab' not in state:
+        state['rolling_vocab'] = 0
+
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, args.skip_init)
     enc_dec.build()
@@ -118,12 +122,15 @@ def main():
     logger.debug("Compile trainer")
     algo = eval(state['algo'])(lm_model, state, train_data)
 
-    if 'rolling_vocab' not in state:
-        state['rolling_vocab'] = 0
     if state['rolling_vocab']:
         logger.debug("Initializing extra parameters")
         init_extra_parameters(lm_model, state)
         init_adadelta_extra_parameters(algo)
+        with open(state['rolling_vocab_set'], 'rb') as f:
+            lm_model.rolling_vocab_set = cPickle.load(f)
+        lm_model.total_num_batches = max(lm_model.rolling_vocab_set)
+        lm_model.Dx_shelve = shelve.open(state['Dx_file'])
+        lm_model.Dy_shelve = shelve.open(state['Dy_file'])
 
     logger.debug("Run training")
     main = MainLoop(train_data, None, None, lm_model, algo, state, None,
@@ -135,6 +142,9 @@ def main():
         main.load()
     if state['loopIters'] > 0:
         main.main()
+    if self.state['rolling_vocab']
+        lm_model.Dx_shelve.close()
+        lm_model.Dy_shelve.close()
 
 if __name__ == "__main__":
     main()

@@ -416,6 +416,20 @@ class MainLoop(object):
                 self.save_time = time.time()
             st = time.time()
             try:
+                if self.state['rolling_vocab']:
+                    step_modulo = self.step % self.model.total_num_batches
+                    if step_modulo in self.model.rolling_vocab_set:
+                        if self.step != 0:
+                            self.roll_vocab_small2large()
+                        new_large2small_src = self.model.Dx_shelve[str(step_modulo)]
+                        new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)]
+                        self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
+                        self.roll_vocab_large2small()
+                    if self.state['hookFreq'] > 0 and \
+                       self.step % self.state['hookFreq'] == 0 and \
+                       self.hooks:
+                        [fn() for fn in self.hooks]
+                    # Hook first so that the peeked batch is the same as the one used in algo
                 rvals = self.algo()
                 self.state['traincost'] = float(rvals['cost'])
                 self.state['step'] = self.step
@@ -458,10 +472,11 @@ class MainLoop(object):
                         for p in self.model.params:
                             p.set_value(bparams[p.name])
 
-                if self.state['hookFreq'] > 0 and \
-                   self.step % self.state['hookFreq'] == 0 and \
-                   self.hooks:
-                    [fn() for fn in self.hooks]
+                if not self.state['rolling_vocab']: # Standard use of hooks
+                    if self.state['hookFreq'] > 0 and \
+                       self.step % self.state['hookFreq'] == 0 and \
+                       self.hooks:
+                        [fn() for fn in self.hooks]
                 if self.reset > 0 and self.step > 1 and \
                    self.step % self.reset == 0:
                     print 'Resetting the data iterator'
@@ -473,6 +488,8 @@ class MainLoop(object):
             except KeyboardInterrupt:
                 break
 
+        if self.state['rolling_vocab']:
+            self.roll_vocab_small2large()
         self.state['wholetime'] = float(time.time() - start_time)
         if self.valid_data is not None:
             self.validate()
