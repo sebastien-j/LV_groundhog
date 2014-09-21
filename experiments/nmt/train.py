@@ -8,6 +8,7 @@ import pprint
 import numpy
 
 from groundhog.utils import sample_zeros, sample_weights_orth, init_bias, sample_weights_classic
+from groundhog.utils import replace_array
 from groundhog.trainer.SGD_adadelta import SGD as SGD_adadelta
 from groundhog.trainer.SGD import SGD as SGD
 from groundhog.trainer.SGD_momentum import SGD as SGD_momentum
@@ -36,19 +37,33 @@ class RandomSamplePrinter(object):
         while sample_idx < self.state['n_examples']:
             batch = self.train_iter.next(peek=True)
             xs, ys = batch['x'], batch['y']
+            small_xs = replace_array(xs, self.model.large2small_src)
+            small_ys = replace_array(ys, self.model.large2small_trgt)
             for seq_idx in range(xs.shape[1]):
                 if sample_idx == self.state['n_examples']:
                     break
 
                 x, y = xs[:, seq_idx], ys[:, seq_idx]
-                x_words = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], x))
-                y_words = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], y))
+                small_x = small_xs[:, seq_idx]
+                small_y = small_ys[:, seq_idx]
+                if self.state['rolling_vocab']:
+                    x_words = cut_eol(map(lambda w_idx : self.model.large2word_src[w_idx], x))
+                    y_words = cut_eol(map(lambda w_idx : self.model.large2word_trgt[w_idx], y))
+                    # Alternatively
+                    # x_words = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], small_x))
+                    # y_words = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], small_y))
+                else:
+                    x_words = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], x))
+                    y_words = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], y))
                 if len(x_words) == 0:
                     continue
 
                 print "Input: {}".format(" ".join(x_words))
                 print "Target: {}".format(" ".join(y_words))
-                self.model.get_samples(self.state['seqlen'] + 1, self.state['n_samples'], x[:len(x_words)])
+                if self.state['rolling_vocab']:
+                    self.model.get_samples(self.state['seqlen'] + 1, self.state['n_samples'], small_x[:len(x_words)])
+                else:
+                    self.model.get_samples(self.state['seqlen'] + 1, self.state['n_samples'], x[:len(x_words)])
                 sample_idx += 1
 
 def parse_args():

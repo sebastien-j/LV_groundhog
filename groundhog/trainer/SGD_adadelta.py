@@ -160,16 +160,13 @@ class SGD(object):
                         'whole_time', 'lr']
         self.prev_batch = None
 
-    def transform_batch(self, batch): # Assumes batch is a dictionary
-        batch['x'] = replace_array(batch['x'], self.model.large2small_src)
-        batch['y'] = replace_array(batch['y'], self.model.large2small_trgt)
-
     def __call__(self):
         batch = self.data.next()
         assert batch
         
-        if self.state['rolling_vocab']:
-            transform_batch(batch)
+        if self.state['rolling_vocab']: # Assumes batch is a dictionary
+            batch['x'] = replace_array(batch['x'], self.model.large2small_src)
+            batch['y'] = replace_array(batch['y'], self.model.large2small_trgt)
 
         # Perturb the data (! and the model)
         if isinstance(batch, dict):

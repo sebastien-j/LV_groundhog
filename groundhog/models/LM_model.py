@@ -217,27 +217,43 @@ class LM_Model(Model):
         """
         Loading the dictionary that goes from indices to actual words
         """
+        if opts['rolling_vocab']:
+            if self.indx_word and '.pkl' in self.indx_word[-4:]:
+                data_dict = pkl.load(open(self.indx_word, "r"))
+                self.large2word_trgt = data_dict
+                self.large2word_trgt[opts['null_sym_target']] = '<eol>'
+                self.large2word_trgt[opts['unk_sym_target']] = opts['oov']
+            elif self.indx_word and '.np' in self.indx_word[-4:]:
+                self.large2word_trgt = numpy.load(self.indx_word)['unique_words']
 
-        if self.indx_word and '.pkl' in self.indx_word[-4:]:
-            data_dict = pkl.load(open(self.indx_word, "r"))
-            self.word_indxs = data_dict
-            self.word_indxs[opts['null_sym_target']] = '<eol>'
-            self.word_indxs[opts['unk_sym_target']] = opts['oov']
-        elif self.indx_word and '.np' in self.indx_word[-4:]:
-            self.word_indxs = numpy.load(self.indx_word)['unique_words']
+            if self.indx_word_src and '.pkl' in self.indx_word_src[-4:]:
+                data_dict = pkl.load(open(self.indx_word_src, "r"))
+                self.large2word_src = data_dict
+                self.large2word_src[opts['null_sym_source']] = '<eol>'
+                self.large2word_src[opts['unk_sym_source']] = opts['oov']
+            elif self.indx_word_src and '.np' in self.indx_word_src[-4:]:
+                self.large2word_src = numpy.load(self.indx_word_src)['unique_words']
+        else:
+            if self.indx_word and '.pkl' in self.indx_word[-4:]:
+                data_dict = pkl.load(open(self.indx_word, "r"))
+                self.word_indxs = data_dict
+                self.word_indxs[opts['null_sym_target']] = '<eol>'
+                self.word_indxs[opts['unk_sym_target']] = opts['oov']
+            elif self.indx_word and '.np' in self.indx_word[-4:]:
+                self.word_indxs = numpy.load(self.indx_word)['unique_words']
 
-        if self.indx_word_src and '.pkl' in self.indx_word_src[-4:]:
-            data_dict = pkl.load(open(self.indx_word_src, "r"))
-            self.word_indxs_src = data_dict
-            self.word_indxs_src[opts['null_sym_source']] = '<eol>'
-            self.word_indxs_src[opts['unk_sym_source']] = opts['oov']
-        elif self.indx_word_src and '.np' in self.indx_word_src[-4:]:
-            self.word_indxs_src = numpy.load(self.indx_word_src)['unique_words']
+            if self.indx_word_src and '.pkl' in self.indx_word_src[-4:]:
+                data_dict = pkl.load(open(self.indx_word_src, "r"))
+                self.word_indxs_src = data_dict
+                self.word_indxs_src[opts['null_sym_source']] = '<eol>'
+                self.word_indxs_src[opts['unk_sym_source']] = opts['oov']
+            elif self.indx_word_src and '.np' in self.indx_word_src[-4:]:
+                self.word_indxs_src = numpy.load(self.indx_word_src)['unique_words']
 
 
 
     def get_samples(self, length = 30, temp=1, *inps):
-        if not hasattr(self, 'word_indxs'):
+        if not hasattr(self, 'word_indxs'): # This won't work with 'rolling_vocab', so make hasattr(self, 'word_indxs') is true)
            self.load_dict()
         self._get_samples(self, length, temp, *inps)
 

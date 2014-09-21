@@ -190,9 +190,9 @@ def dbg_hook(hook, x):
     else:
         return theano.printing.Print(global_fn=hook)(x)
 
-def replace_array(in_array, mapping):
+def replace_array(in_array, mapping): # NOT in-place
 
-    out = numpy.zeros(in_array.shape, in_array.dtype)
+    out_array = numpy.zeros(in_array.shape, in_array.dtype)
     
     for i in xrange(numpy.shape(in_array)[0]): # Assume array is 2-dimensional
         for j in xrange(numpy.shape(in_array)[1]):

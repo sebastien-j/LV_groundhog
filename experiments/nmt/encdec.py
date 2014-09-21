@@ -121,8 +121,12 @@ def create_padded_batch(state, x, y, return_dict=False):
         return None
 
     # Unknown words
-    X[X >= state['n_sym_source']] = state['unk_sym_source']
-    Y[Y >= state['n_sym_target']] = state['unk_sym_target']
+    if state['rolling_vocab']:
+        X[X >= state['large_vocab_source']] = state['unk_sym_source']
+        Y[Y >= state['large_vocab_target']] = state['unk_sym_target']
+    else:
+        X[X >= state['n_sym_source']] = state['unk_sym_source']
+        Y[Y >= state['n_sym_target']] = state['unk_sym_target']
 
     if return_dict:
         return {'x' : X, 'x_mask' : Xmask, 'y': Y, 'y_mask' : Ymask}
