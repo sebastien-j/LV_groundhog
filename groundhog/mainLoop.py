@@ -310,7 +310,7 @@ class MainLoop(object):
             self.algo.large_b_dec_deep_softmax_g2[large] = temp_g2[small]
             self.algo.large_b_dec_deep_softmax_d2[large] = temp_d2[small]
 
-    def roll_vocab_update_dicts(self, new_large2small_src, new_large2small_trgt)
+    def roll_vocab_update_dicts(self, new_large2small_src, new_large2small_trgt):
         #######################
         # UPDATE DICTIONARIES #
         #######################
