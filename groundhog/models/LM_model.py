@@ -255,6 +255,7 @@ class LM_Model(Model):
     def get_samples(self, length = 30, temp=1, *inps):
         if not hasattr(self, 'word_indxs'): # This won't work with 'rolling_vocab', so make hasattr(self, 'word_indxs') is true)
            self.load_dict()
+           # Actually, don't think this would ever work as load_dict() requires a non-optional argument
         self._get_samples(self, length, temp, *inps)
 
     def perturb(self, *args, **kwargs):

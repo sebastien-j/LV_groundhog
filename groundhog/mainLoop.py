@@ -381,13 +381,13 @@ class MainLoop(object):
         self.model.small2large_trgt = invert_dict(self.model.large2small_trgt)
 
         self.model.word_indxs_src = {} # small index to word
-        self.model.word_indxs_trgt = {}
+        self.model.word_indxs = {}
         for small in self.model.small2large_src:
             large = self.model.small2large_src[small]
             self.model.word_indxs_src[small] = self.model.large2word_src[large]
         for small in self.model.small2large_trgt:
             large = self.model.small2large_trgt[small]
-            self.model.word_indxs_trgt[small] = self.model.large2word_trgt[large]
+            self.model.word_indxs[small] = self.model.large2word_trgt[large]
 
     def roll_vocab_large2small(self):
         # Transfer from large to small parameters
