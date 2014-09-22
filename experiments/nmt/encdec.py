@@ -149,6 +149,7 @@ def get_batch_iterator(state, rng):
                 batch_size = state['bs']
                 #data = [PytablesBitextIterator.next(self) for k in range(k_batches)]
                 data = []
+                logger.debug("Start of a super batch")
                 for k in range(k_batches):
                     n = PytablesBitextIterator.next(self)
                     if n is not None:
