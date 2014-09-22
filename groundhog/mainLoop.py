@@ -479,7 +479,7 @@ class MainLoop(object):
             try:
                 if self.state['rolling_vocab']:
                     step_modulo = self.step % self.model.total_num_batches
-                    if step_modulo in self.model.rolling_vocab_set:
+                    if step_modulo in self.model.rolling_vocab_dict:
                         if self.step != 0:
                             self.roll_vocab_small2large()
                         new_large2small_src = self.model.Dx_shelve[str(step_modulo)]

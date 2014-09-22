@@ -126,8 +126,8 @@ def main():
         logger.debug("Initializing extra parameters")
         init_extra_parameters(lm_model, state)
         init_adadelta_extra_parameters(algo)
-        with open(state['rolling_vocab_set'], 'rb') as f:
-            lm_model.rolling_vocab_set = cPickle.load(f)
+        with open(state['rolling_vocab_dict'], 'rb') as f:
+            lm_model.rolling_vocab_dict = cPickle.load(f)
         lm_model.total_num_batches = max(lm_model.rolling_vocab_set)
         lm_model.Dx_shelve = shelve.open(state['Dx_file'])
         lm_model.Dy_shelve = shelve.open(state['Dy_file'])
@@ -142,7 +142,7 @@ def main():
         main.load()
     if state['loopIters'] > 0:
         main.main()
-    if self.state['rolling_vocab']
+    if self.state['rolling_vocab']:
         lm_model.Dx_shelve.close()
         lm_model.Dy_shelve.close()
 
