@@ -486,11 +486,17 @@ class MainLoop(object):
                         new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)]
                         self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
                         self.roll_vocab_large2small()
-                    if self.state['hookFreq'] > 0 and \
+                        tmp_batch = self.train_data.next(peek=True)
+                        if (tmp_batch['x'][:,0], tmp_batch['y'][:,0]) == self.model.rolling_vocab_dict[step_modulo]:
+                            logger.debug("Identical first sentences. OK")
+                        else:
+                            logger.error("Batches do not correspond.")
+                    elif self.state['hookFreq'] > 0 and \
                        self.step % self.state['hookFreq'] == 0 and \
                        self.hooks:
                         [fn() for fn in self.hooks]
                     # Hook first so that the peeked batch is the same as the one used in algo
+                    # Use elif not to peek twice
                 rvals = self.algo()
                 self.state['traincost'] = float(rvals['cost'])
                 self.state['step'] = self.step

@@ -86,18 +86,19 @@ def main():
         return False
 
     prev_step = 0
+    step = 0
     rolling_vocab_dict = {}
-    rolling_vocab_dict[0] = 0
     Dx_dict = {}
     Dy_dict = {}
 
-    step = 0
     output = False
     stop = False
 
     while not stop: # Assumes the shuffling in get_homogeneous_batch_iter is always the same (Is this true?)
         try:
             batch = train_data.next()
+            if step == 0:
+                rolling_vocab_dict[step] = (batch['x'][:,0], batch['y'][:,0])
         except:
             batch = None
             stop = True
@@ -108,9 +109,10 @@ def main():
                 output = update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
 
             if output:
-                rolling_vocab_dict[step]=0 # When we get to this batch, we will need to use a new vocabulary
-                Dx_dict[prev_step] = Dx.copy()
+                Dx_dict[prev_step] = Dx.copy() # Save dictionaries for the batches preceding this one
                 Dy_dict[prev_step] = Dy.copy()
+                rolling_vocab_dict[step] = (batch['x'][:,0], batch['y'][:,0]) # When we get to this batch, we will need to use a new vocabulary
+                # tuple of first sentences of the batch # Uses large vocabulary indices
                 prev_step = step
                 dx = {}
                 dy = {}
@@ -124,9 +126,9 @@ def main():
             
             step += 1
 
-    rolling_vocab_dict[step]=0 # Total number of batches
     Dx_dict[prev_step] = Dx.copy()
     Dy_dict[prev_step] = Dy.copy()
+    rolling_vocab_dict[step]=0 # Total number of batches # Don't store first sentences here
 
     with open('rolling_vocab_dict.pkl','w') as f:
         cPickle.dump(rolling_vocab_dict, f)
