@@ -128,7 +128,7 @@ def main():
         init_adadelta_extra_parameters(algo)
         with open(state['rolling_vocab_dict'], 'rb') as f:
             lm_model.rolling_vocab_dict = cPickle.load(f)
-        lm_model.total_num_batches = max(lm_model.rolling_vocab_set)
+        lm_model.total_num_batches = max(lm_model.rolling_vocab_dict)
         lm_model.Dx_shelve = shelve.open(state['Dx_file'])
         lm_model.Dy_shelve = shelve.open(state['Dy_file'])
 
