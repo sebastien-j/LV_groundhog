@@ -78,16 +78,16 @@ def parse_args():
     return parser.parse_args()
 
 def init_extra_parameters(model, state): # May want to add skip_init later
-    model.large_W0_enc_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_source'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
-    model.large_W0_dec_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_target'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
+    model.large_W_0_enc_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_source'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
+    model.large_W_0_dec_approx_embdr = eval(state['weight_init_fn'])(state['large_vocab_target'], state['rank_n_approx'], -1, state['weight_scale'], model.rng)
     model.large_W2_dec_deep_softmax = eval(state['weight_init_fn'])(state['rank_n_approx'], state['large_vocab_target'], -1, state['weight_scale'], model.rng)
     model.large_b_dec_deep_softmax = init_bias(state['large_vocab_target'], 0., model.rng)
 
 def init_adadelta_extra_parameters(algo):
-    algo.large_W0_enc_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
-    algo.large_W0_enc_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
-    algo.large_W0_dec_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
-    algo.large_W0_dec_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W_0_enc_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W_0_enc_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W_0_dec_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+    algo.large_W_0_dec_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_W2_dec_deep_softmax_g2 = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_W2_dec_deep_softmax_d2 = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_b_dec_deep_softmax_g2 = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
