@@ -50,9 +50,13 @@ class RandomSamplePrinter(object):
                 if self.state['rolling_vocab']:
                     x_words = cut_eol(map(lambda w_idx : self.model.large2word_src[w_idx], x))
                     y_words = cut_eol(map(lambda w_idx : self.model.large2word_trgt[w_idx], y))
-                    # Alternatively
-                    # x_words = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], small_x))
-                    # y_words = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], small_y))
+                    #Alternatively
+                    x_words_alt = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], small_x))
+                    y_words_alt = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], small_y))
+                    if (x_words == x_words_alt) and (y_words == y_words_alt):
+                        logger.debug("OK. Small and large index2word match.")
+                    else:
+                        logger.error("Small and large index2word DO NOT MATCH.")
                 else:
                     x_words = cut_eol(map(lambda w_idx : self.model.word_indxs_src[w_idx], x))
                     y_words = cut_eol(map(lambda w_idx : self.model.word_indxs[w_idx], y))
