@@ -336,6 +336,8 @@ class MainLoop(object):
 
     def roll_vocab_small2large(self):
         # Transfer from small to large parameters
+        logger.debug("Called roll_vocab_small2large()")
+        
         temp = self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
@@ -374,6 +376,8 @@ class MainLoop(object):
 
     def roll_vocab_update_dicts(self, new_large2small_src, new_large2small_trgt):
         # Update dictionaries
+
+        logger.debug("Called roll_vocab_update_dicts()")
         self.model.large2small_src = new_large2small_src
         self.model.large2small_trgt = new_large2small_trgt
 
@@ -391,6 +395,8 @@ class MainLoop(object):
 
     def roll_vocab_large2small(self):
         # Transfer from large to small parameters
+        logger.debug("Called roll_vocab_large2small()")
+
         temp = self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
