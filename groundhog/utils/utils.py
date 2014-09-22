@@ -205,6 +205,7 @@ def name2pos(param_list):
     for p in param_list:
         d[p.name] = i
         i += 1
+    return d
 
 def invert_dict(d):
     inv_d = {}
