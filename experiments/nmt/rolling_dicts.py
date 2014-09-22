@@ -72,6 +72,8 @@ def main():
             for j in xrange(j_range):
                 word = arr[i,j]
                 if word not in d:
+                    if len(d) == full:
+                        return True
                     if word not in D: # Also not in C
                         key, value = C.popitem()
                         del D[key]
@@ -81,8 +83,6 @@ def main():
                         d[word] = D[word]
                         if word in C:
                             del C[word]
-                    if len(d) == full:
-                        return True
         return False
 
     prev_step = 0
