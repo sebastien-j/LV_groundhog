@@ -218,6 +218,8 @@ class SGD(object):
         """
         vals = dict([(self.gnorm2[i].name, self.gnorm2[i].get_value()) for i in xrange(len(self.model.params))])
         vals.update([(self.dnorm2[i].name, self.dnorm2[i].get_value()) for i in xrange(len(self.model.params))])
+        if self.state['save_gs']:
+            vals.update([(self.gs[i].name, self.gs[i].get_value()) for i in xrange(len(self.model.params))])        
         numpy.savez(filename, **vals)
 
     def load(self, filename):
@@ -229,4 +231,6 @@ class SGD(object):
             p = self.model.params[i]
             self.gnorm2[i].set_value(vals[p.name+'_g2'])
             self.dnorm2[i].set_value(vals[p.name+'_d2'])
+            if self.state['save_gs']:
+                self.gs[i].set_value(vals[p.name])
         #TODO Error check

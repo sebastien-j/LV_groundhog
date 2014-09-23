@@ -96,6 +96,12 @@ def init_adadelta_extra_parameters(algo):
     algo.large_W2_dec_deep_softmax_d2 = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_b_dec_deep_softmax_g2 = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
     algo.large_b_dec_deep_softmax_d2 = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
+    if state['save_gs']:
+        algo.large_W_0_enc_approx_embdr_gs = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+        algo.large_W_0_dec_approx_embdr_gs = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
+        algo.large_W2_dec_deep_softmax_gs = sample_zeros(algo.state['rank_n_approx'], algo.state['large_vocab_target'], -1, algo.state['weight_scale'], algo.rng)
+        algo.large_b_dec_deep_softmax_gs = init_bias(algo.state['large_vocab_target'], 0., algo.rng)
+
 
 def main():
     args = parse_args()
@@ -115,6 +121,10 @@ def main():
 
     if 'rolling_vocab' not in state:
         state['rolling_vocab'] = 0
+    if 'save_algo' not in state:
+        state['save_algo'] = 0
+    if 'save_gs' not in state:
+        state['save_gs'] = 0
 
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, args.skip_init)
