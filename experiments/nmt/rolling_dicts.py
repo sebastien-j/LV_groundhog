@@ -79,10 +79,9 @@ def main():
                         del D[key]
                         d[word] = value
                         D[word] = value
-                    else:
+                    else: # Also in C as (d UNION C) is D. (d INTERSECTION C) is the empty set.
                         d[word] = D[word]
-                        if word in C:
-                            del C[word]
+                        del C[word]
         return False
 
     prev_step = 0
@@ -105,8 +104,7 @@ def main():
 
         if batch:
             output = update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source'])
-            if not output:
-                output = update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
+            output += update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
 
             if output:
                 Dx_dict[prev_step] = Dx.copy() # Save dictionaries for the batches preceding this one
