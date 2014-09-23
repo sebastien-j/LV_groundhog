@@ -23,9 +23,9 @@ def parse_args():
     parser.add_argument("--state", help="State to use")
     parser.add_argument("--proto",  default="prototype_search_state",
         help="Prototype state to use for state")
-    #parser.add_argument("--skip-init", action="store_true",
-    #    help="Skip parameter initilization")
-    #parser.add_argument("changes",  nargs="*", help="Changes to state", default="")
+    parser.add_argument("--skip-init", action="store_true",
+        help="Skip parameter initilization")
+    parser.add_argument("changes",  nargs="*", help="Changes to state", default="")
     return parser.parse_args()
 
 def main():
@@ -38,8 +38,8 @@ def main():
         else:
             with open(args.state) as src:
                 state.update(cPickle.load(src))
-    #for change in args.changes:
-    #    state.update(eval("dict({})".format(change)))
+    for change in args.changes:
+        state.update(eval("dict({})".format(change)))
 
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
     logger.debug("State:\n{}".format(pprint.pformat(state)))
@@ -98,7 +98,7 @@ def main():
         try:
             batch = train_data.next()
             if step == 0:
-                rolling_vocab_dict[step] = (batch['x'][:,0], batch['y'][:,0])
+                rolling_vocab_dict[step] = (batch['x'][:,0].tolist(), batch['y'][:,0].tolist())
         except:
             batch = None
             stop = True
@@ -111,7 +111,7 @@ def main():
             if output:
                 Dx_dict[prev_step] = Dx.copy() # Save dictionaries for the batches preceding this one
                 Dy_dict[prev_step] = Dy.copy()
-                rolling_vocab_dict[step] = (batch['x'][:,0], batch['y'][:,0]) # When we get to this batch, we will need to use a new vocabulary
+                rolling_vocab_dict[step] = (batch['x'][:,0].tolist(), batch['y'][:,0].tolist()) # When we get to this batch, we will need to use a new vocabulary
                 # tuple of first sentences of the batch # Uses large vocabulary indices
                 prev_step = step
                 dx = {}

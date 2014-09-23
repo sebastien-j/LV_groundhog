@@ -493,7 +493,7 @@ class MainLoop(object):
                         self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
                         self.roll_vocab_large2small()
                         tmp_batch = self.train_data.next(peek=True)
-                        if (tmp_batch['x'][:,0], tmp_batch['y'][:,0]) == self.model.rolling_vocab_dict[step_modulo]:
+                        if (tmp_batch['x'][:,0].tolist(), tmp_batch['y'][:,0].tolist()) == self.model.rolling_vocab_dict[step_modulo]:
                             logger.debug("Identical first sentences. OK")
                         else:
                             logger.error("Batches do not correspond.")
