@@ -156,7 +156,7 @@ def main():
         main.load()
     if state['loopIters'] > 0:
         main.main()
-    if self.state['rolling_vocab']:
+    if state['rolling_vocab']:
         lm_model.Dx_shelve.close()
         lm_model.Dy_shelve.close()
 
