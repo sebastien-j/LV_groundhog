@@ -472,6 +472,22 @@ class MainLoop(object):
         for i in xrange(self.timings['step'] - self.timings['super_step']):
             self.train_data.next()
 
+        if self.state['rolling_vocab']:
+            # Make sure dictionary is current. 
+            # If training is interrupted when the vocabularies are exchanged,
+            # things may get broken.
+            step_modulo = self.step % self.model.total_num_batches
+            if step_modulo in self.model.rolling_vocab_dict: # 0 always in.
+                cur_key = step_modulo
+            else:
+                cur_key = 0
+                for key in self.model.rolling_vocab_dict:
+                    if (key < step_modulo) and (key > cur_key): # Find largest key smaller than step_modulo
+                        cur_key = key
+            new_large2small_src = self.model.Dx_shelve[str(cur_key)]
+            new_large2small_trgt = self.model.Dy_shelve[str(cur_key)]
+            self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
+
         while (self.step < self.state['loopIters'] and
                last_cost > .1*self.state['minerr'] and
                (time.time() - start_time)/60. < self.state['timeStop'] and
@@ -487,10 +503,10 @@ class MainLoop(object):
                     step_modulo = self.step % self.model.total_num_batches
                     if step_modulo in self.model.rolling_vocab_dict:
                         if self.step != 0:
-                            self.roll_vocab_small2large()
-                        new_large2small_src = self.model.Dx_shelve[str(step_modulo)]
-                        new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)]
-                        self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
+                            self.roll_vocab_small2large() # Not necessary
+                            new_large2small_src = self.model.Dx_shelve[str(step_modulo)] # Done above
+                            new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)] # Done above
+                            self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt) # Done above
                         self.roll_vocab_large2small()
                         tmp_batch = self.train_data.next(peek=True)
                         if (tmp_batch['x'][:,0].tolist(), tmp_batch['y'][:,0].tolist()) == self.model.rolling_vocab_dict[step_modulo]:
