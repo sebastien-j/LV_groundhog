@@ -295,13 +295,13 @@ class MainLoop(object):
         vals['large_W_0_enc_approx_embdr'] = self.model.large_W_0_enc_approx_embdr
         vals['large_W_0_dec_approx_embdr'] = self.model.large_W_0_dec_approx_embdr
         vals['large_W2_dec_deep_softmax'] = self.model.large_W2_dec_deep_softmax
-        vals['large_b_dec_deep_softmax'] = self.model.large_W2_dec_deep_softmax
+        vals['large_b_dec_deep_softmax'] = self.model.large_b_dec_deep_softmax
         
         if self.state['save_algo']:
             vals['large_W_0_enc_approx_embdr_g2'] = self.algo.large_W_0_enc_approx_embdr_g2
             vals['large_W_0_dec_approx_embdr_g2'] = self.algo.large_W_0_dec_approx_embdr_g2
             vals['large_W2_dec_deep_softmax_g2'] = self.algo.large_W2_dec_deep_softmax_g2
-            vals['large_b_dec_deep_softmax_g2'] = self.algo.large_W2_dec_deep_softmax_g2
+            vals['large_b_dec_deep_softmax_g2'] = self.algo.large_b_dec_deep_softmax_g2
 
             vals['large_W_0_enc_approx_embdr_d2'] = self.algo.large_W_0_enc_approx_embdr_d2
             vals['large_W_0_dec_approx_embdr_d2'] = self.algo.large_W_0_dec_approx_embdr_d2
