@@ -432,12 +432,12 @@ class MainLoop(object):
             temp[small] = self.model.large_W_0_enc_approx_embdr[large]
             temp_g2[small] = self.algo.large_W_0_enc_approx_embdr_g2[large]
             temp_d2[small] = self.algo.large_W_0_enc_approx_embdr_d2[large]
-            if self.state['gs']:
+            if self.state['save_gs']:
                 temp_gs[small] = self.algo.large_W_0_enc_approx_embdr_gs[large]
         self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp)
         self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_g2)
         self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_d2)
-        if self.state['gs']:
+        if self.state['save_gs']:
             self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
@@ -450,12 +450,12 @@ class MainLoop(object):
             temp[small] = self.model.large_W_0_dec_approx_embdr[large]
             temp_g2[small] = self.algo.large_W_0_dec_approx_embdr_g2[large]
             temp_d2[small] = self.algo.large_W_0_dec_approx_embdr_d2[large]
-            if self.state['gs']:
+            if self.state['save_gs']:
                 temp_gs[small] = self.algo.large_W_0_dec_approx_embdr_gs[large]
         self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp)
         self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_g2)
         self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_d2)
-        if self.state['gs']:
+        if self.state['save_gs']:
             self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['W2_dec_deep_softmax']].get_value()
@@ -468,12 +468,12 @@ class MainLoop(object):
             temp[:,small] = self.model.large_W2_dec_deep_softmax[:,large]
             temp_g2[:,small] = self.algo.large_W2_dec_deep_softmax_g2[:,large]
             temp_d2[:,small] = self.algo.large_W2_dec_deep_softmax_d2[:,large]
-            if self.state['gs']:
+            if self.state['save_gs']:
                 temp_gs[:,small] = self.algo.large_W2_dec_deep_softmax_gs[:,large]
         self.model.params[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp)
         self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_g2)
         self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_d2)
-        if self.state['gs']:
+        if self.state['save_gs']:
             self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['b_dec_deep_softmax']].get_value()
@@ -486,12 +486,12 @@ class MainLoop(object):
             temp[small] = self.model.large_b_dec_deep_softmax[large]
             temp_g2[small] = self.algo.large_b_dec_deep_softmax_g2[large]
             temp_d2[small] = self.algo.large_b_dec_deep_softmax_d2[large]
-            if self.state['gs']:
+            if self.state['save_gs']:
                 temp_gs[small] = self.algo.large_b_dec_deep_softmax_gs[large]
         self.model.params[self.model.name2pos['b_dec_deep_softmax']].set_value(temp)
         self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_g2)
         self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_d2)
-        if self.state['gs']:
+        if self.state['save_gs']:
             self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_gs)
 
     def main(self):
