@@ -44,8 +44,9 @@ def main():
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
     logger.debug("State:\n{}".format(pprint.pformat(state)))
 
-    assert state['rolling_vocab']
-    assert not state['use_infinite_loop']
+    state['rolling_vocab'] = True
+    state['use_infinite_loop'] = False
+    logger.debug("rolling_vocab set to True, 'use_infinite_loop' set to False")
     rng = numpy.random.RandomState(state['seed'])
 
     logger.debug("Load data")
