@@ -87,7 +87,7 @@ def init_extra_parameters(model, state): # May want to add skip_init later
     model.large_W2_dec_deep_softmax = eval(state['weight_init_fn'])(state['rank_n_approx'], state['large_vocab_target'], -1, state['weight_scale'], model.rng)
     model.large_b_dec_deep_softmax = init_bias(state['large_vocab_target'], 0., model.rng)
 
-def init_adadelta_extra_parameters(algo):
+def init_adadelta_extra_parameters(algo, state):
     algo.large_W_0_enc_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_W_0_enc_approx_embdr_d2 = sample_zeros(algo.state['large_vocab_source'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
     algo.large_W_0_dec_approx_embdr_g2 = sample_zeros(algo.state['large_vocab_target'], algo.state['rank_n_approx'], -1, algo.state['weight_scale'], algo.rng)
@@ -139,7 +139,7 @@ def main():
     if state['rolling_vocab']:
         logger.debug("Initializing extra parameters")
         init_extra_parameters(lm_model, state)
-        init_adadelta_extra_parameters(algo)
+        init_adadelta_extra_parameters(algo, state)
         with open(state['rolling_vocab_dict'], 'rb') as f:
             lm_model.rolling_vocab_dict = cPickle.load(f)
         lm_model.total_num_batches = max(lm_model.rolling_vocab_dict)
