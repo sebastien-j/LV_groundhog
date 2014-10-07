@@ -129,10 +129,10 @@ def main():
     Dy_dict[prev_step] = Dy.copy()
     rolling_vocab_dict[step]=0 # Total number of batches # Don't store first sentences here
 
-    with open('rolling_vocab_dict.pkl','w') as f:
+    with open(state['rolling_vocab_dict'],'w') as f:
         cPickle.dump(rolling_vocab_dict, f)
-    Dx_file = shelve.open('Dx_file')
-    Dy_file = shelve.open('Dy_file')
+    Dx_file = shelve.open(state['Dx_file'])
+    Dy_file = shelve.open(state['Dy_file'])
     for key in Dx_dict:
         Dx_file[str(key)] = Dx_dict[key]
         Dy_file[str(key)] = Dy_dict[key]
