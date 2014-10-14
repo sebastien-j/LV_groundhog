@@ -229,6 +229,13 @@ def main():
 
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
 
+    if 'rolling_vocab' not in state:
+        state['rolling_vocab'] = 0
+    if 'save_algo' not in state:
+        state['save_algo'] = 0
+    if 'save_gs' not in state:
+        state['save_gs'] = 0
+
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, skip_init=True)
     enc_dec.build()
