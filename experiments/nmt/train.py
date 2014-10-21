@@ -125,6 +125,8 @@ def main():
         state['save_algo'] = 0
     if 'save_gs' not in state:
         state['save_gs'] = 0
+    if 'save_iter' not in state:
+        state['save_iter'] = -1
 
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, args.skip_init)
