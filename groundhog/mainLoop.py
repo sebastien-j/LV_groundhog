@@ -231,15 +231,17 @@ class MainLoop(object):
 
         # ignore keyboard interrupt while saving
         s = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        numpy.savez(self.state['prefix']+'timing.npz',
-                    **self.timings)
         if self.state['overwrite']:
+            numpy.savez(self.state['prefix']+'timing.npz',
+                        **self.timings)
             self.model.save(self.state['prefix']+'model.npz')
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
                 self.algo.save(self.state['prefix']+'algo.npz')
             if self.state['rolling_vocab']:
                 self.save_large_params(self.state['prefix']+'large.npz')
         else:
+            numpy.savez(self.state['prefix']+'timing' + str(self.save_iter) + '.npz',
+                        **self.timings)
             self.model.save(self.state['prefix'] +
                             'model%d.npz' % self.save_iter)
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
@@ -248,22 +250,36 @@ class MainLoop(object):
                 self.save_large_params(self.state['prefix']+'large%d.npz' % self.save_iter)
         cPickle.dump(self.state, open(self.state['prefix']+'state.pkl', 'w'))
         self.save_iter += 1
+        self.state['save_iter'] = self.save_iter # Increment after saving only
         signal.signal(signal.SIGINT, s)
 
         print "Model saved, took {}".format(time.time() - start)
 
     # FIXME
     def load(self, model_path=None, timings_path=None, algo_path=None, large_path=None):
+        self.save_iter = self.state['save_iter']
         if model_path is None:
-            model_path = self.state['prefix'] + 'model.npz'
+            if not self.state['overwrite']:
+                model_path = self.state['prefix'] + 'model' + str(self.save_iter) + '.npz'
+            else:
+                model_path = self.state['prefix'] + 'model.npz'
         if timings_path is None:
-            timings_path = self.state['prefix'] + 'timing.npz'
+            if not self.state['overwrite']:
+                timings_path = self.state['prefix'] + str(self.save_iter) + 'timing.npz'            
+            else:
+                timings_path = self.state['prefix'] + 'timing.npz'
         if self.state['save_algo']:
             if algo_path is None:
-                algo_path = self.state['prefix'] + 'algo.npz'
+                if not self.state['overwrite']:
+                    algo_path = self.state['prefix'] + str(self.save_iter) + 'algo.npz'                
+                else:
+                    algo_path = self.state['prefix'] + 'algo.npz'
         if self.state['rolling_vocab']:
             if large_path is None:
-                large_path = self.state['prefix'] + 'large.npz'
+                if not self.state['overwrite']
+                    large_path = self.state['prefix'] + str(self.save_iter) + 'large.npz'                    
+                else:
+                    large_path = self.state['prefix'] + 'large.npz'
         try:
             self.model.load(model_path)
         except Exception:
@@ -506,10 +522,14 @@ class MainLoop(object):
         self.step = int(self.timings['step'])
         self.algo.step = self.step
 
-        self.save_iter = 0
-        self.save()
-        if self.channel is not None:
-            self.channel.save()
+        if self.state['save_iter'] < 0:
+            self.state['save_iter'] = 0
+            self.save()
+            if self.channel is not None:
+                self.channel.save()
+        else: # Fake saving
+            self.save_iter += 1
+            self.state['save_iter'] = self.save_iter
         self.save_time = time.time()
 
         last_cost = 1.
