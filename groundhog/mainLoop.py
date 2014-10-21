@@ -265,19 +265,19 @@ class MainLoop(object):
                 model_path = self.state['prefix'] + 'model.npz'
         if timings_path is None:
             if not self.state['overwrite']:
-                timings_path = self.state['prefix'] + str(self.save_iter) + 'timing.npz'            
+                timings_path = self.state['prefix'] + 'timing' + str(self.save_iter) + '.npz'            
             else:
                 timings_path = self.state['prefix'] + 'timing.npz'
         if self.state['save_algo']:
             if algo_path is None:
                 if not self.state['overwrite']:
-                    algo_path = self.state['prefix'] + str(self.save_iter) + 'algo.npz'                
+                    algo_path = self.state['prefix'] + 'algo' + str(self.save_iter) + '.npz'                
                 else:
                     algo_path = self.state['prefix'] + 'algo.npz'
         if self.state['rolling_vocab']:
             if large_path is None:
                 if not self.state['overwrite']:
-                    large_path = self.state['prefix'] + str(self.save_iter) + 'large.npz'                    
+                    large_path = self.state['prefix'] + 'large' + str(self.save_iter) + '.npz'                    
                 else:
                     large_path = self.state['prefix'] + 'large.npz'
         try:
