@@ -523,6 +523,7 @@ class MainLoop(object):
         self.algo.step = self.step
 
         if self.state['save_iter'] < 0:
+            self.save_iter = 0
             self.state['save_iter'] = 0
             self.save()
             if self.channel is not None:
