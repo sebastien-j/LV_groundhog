@@ -578,8 +578,6 @@ class MainLoop(object):
                             new_large2small_src = self.model.Dx_shelve[str(step_modulo)]
                             new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)]
                             self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt) # Done above for 0 or reloaded model
-                        else:
-                            self.zero_or_reload = False 
                         self.roll_vocab_large2small()
                         tmp_batch = self.train_data.next(peek=True)
                         if (tmp_batch['x'][:,0].tolist(), tmp_batch['y'][:,0].tolist()) == self.model.rolling_vocab_dict[step_modulo]:
@@ -646,6 +644,7 @@ class MainLoop(object):
 
                 self.step += 1
                 if self.state['rolling_vocab']:
+                    self.zero_or_reload = False
                     self.timings['step'] = self.step # Step now
                     if (self.step % self.model.total_num_batches) % self.state['sort_k_batches'] == 0: # Start of a super_batch.
                         logger.debug("Set super_step and next_offset")
