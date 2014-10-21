@@ -276,7 +276,7 @@ class MainLoop(object):
                     algo_path = self.state['prefix'] + 'algo.npz'
         if self.state['rolling_vocab']:
             if large_path is None:
-                if not self.state['overwrite']
+                if not self.state['overwrite']:
                     large_path = self.state['prefix'] + str(self.save_iter) + 'large.npz'                    
                 else:
                     large_path = self.state['prefix'] + 'large.npz'
