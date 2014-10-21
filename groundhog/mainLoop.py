@@ -556,6 +556,7 @@ class MainLoop(object):
             new_large2small_src = self.model.Dx_shelve[str(cur_key)]
             new_large2small_trgt = self.model.Dy_shelve[str(cur_key)]
             self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt)
+            self.zero_or_reload = True
 
         while (self.step < self.state['loopIters'] and
                last_cost > .1*self.state['minerr'] and
@@ -571,11 +572,13 @@ class MainLoop(object):
                 if self.state['rolling_vocab']:
                     step_modulo = self.step % self.model.total_num_batches
                     if step_modulo in self.model.rolling_vocab_dict:
-                        if self.step != 0:
-                            self.roll_vocab_small2large() # Not necessary for 0
+                        if not self.zero_or_reload:
+                            self.roll_vocab_small2large() # Not necessary for 0 or when reloading a properly saved model
                             new_large2small_src = self.model.Dx_shelve[str(step_modulo)]
                             new_large2small_trgt = self.model.Dy_shelve[str(step_modulo)]
-                            self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt) # Done above for 0
+                            self.roll_vocab_update_dicts(new_large2small_src, new_large2small_trgt) # Done above for 0 or reloaded model
+                        else:
+                            self.zero_or_reload = False 
                         self.roll_vocab_large2small()
                         tmp_batch = self.train_data.next(peek=True)
                         if (tmp_batch['x'][:,0].tolist(), tmp_batch['y'][:,0].tolist()) == self.model.rolling_vocab_dict[step_modulo]:
