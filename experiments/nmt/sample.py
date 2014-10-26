@@ -145,6 +145,7 @@ def indices_to_words(i2w, seq):
 def sample(lm_model, seq, n_samples,
         sampler=None, beam_search=None,
         ignore_unk=False, normalize=False,
+        normalize_p = 1.0,
         alpha=1, verbose=False):
     if beam_search:
         sentences = []
@@ -152,7 +153,7 @@ def sample(lm_model, seq, n_samples,
                 ignore_unk=ignore_unk, minlen=len(seq) / 2)
         if normalize:
             counts = [len(s) for s in trans]
-            costs = [co / cn for co, cn in zip(costs, counts)]
+            costs = [co / (cn**normalize_p) for co, cn in zip(costs, counts)]
         for i in range(len(trans)):
             sen = indices_to_words(lm_model.word_indxs, trans[i])
             sentences.append(" ".join(sen))
@@ -179,7 +180,7 @@ def sample(lm_model, seq, n_samples,
             costs.append(-numpy.sum(probs))
         if normalize:
             counts = [len(s.strip().split(" ")) for s in sentences]
-            costs = [co / cn for co, cn in zip(costs, counts)]
+            costs = [co / (cn**normalize_p) for co, cn in zip(costs, counts)]
         sprobs = numpy.argsort(costs)
         if verbose:
             for pidx in sprobs:
@@ -209,6 +210,9 @@ def parse_args():
     parser.add_argument("--normalize",
             action="store_true", default=False,
             help="Normalize log-prob with the word count")
+     parser.add_argument("--normalize-p",
+            type=float, default=1.0,
+            help="Controls preference to longer output. Only used if `normalize` is true.")
     parser.add_argument("--verbose",
             action="store_true", default=False,
             help="Be verbose")
@@ -274,7 +278,8 @@ def main():
             if args.verbose:
                 print "Parsed Input:", parsed_in
             trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
-                    beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize)
+                    beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
+                    normalize_p=args.normalize_p)
             best = numpy.argmin(costs)
             print >>ftrans, trans[best]
             if args.verbose:
@@ -305,7 +310,7 @@ def main():
 
             sample(lm_model, seq, n_samples, sampler=sampler,
                     beam_search=beam_search,
-                    ignore_unk=args.ignore_unk, normalize=args.normalize,
+                    ignore_unk=args.ignore_unk, normalize=args.normalize, normalize_p=args.normalize_p,
                     alpha=alpha, verbose=True)
 
 if __name__ == "__main__":
