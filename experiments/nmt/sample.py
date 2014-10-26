@@ -210,7 +210,7 @@ def parse_args():
     parser.add_argument("--normalize",
             action="store_true", default=False,
             help="Normalize log-prob with the word count")
-     parser.add_argument("--normalize-p",
+    parser.add_argument("--normalize-p",
             type=float, default=1.0,
             help="Controls preference to longer output. Only used if `normalize` is true.")
     parser.add_argument("--verbose",
