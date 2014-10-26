@@ -265,19 +265,19 @@ class MainLoop(object):
                 model_path = self.state['prefix'] + 'model.npz'
         if timings_path is None:
             if not self.state['overwrite']:
-                timings_path = self.state['prefix'] + 'timing' + str(self.save_iter) + '.npz'            
+                timings_path = self.state['prefix'] + 'timing' + str(self.save_iter) + '.npz'
             else:
                 timings_path = self.state['prefix'] + 'timing.npz'
         if self.state['save_algo']:
             if algo_path is None:
                 if not self.state['overwrite']:
-                    algo_path = self.state['prefix'] + 'algo' + str(self.save_iter) + '.npz'                
+                    algo_path = self.state['prefix'] + 'algo' + str(self.save_iter) + '.npz'
                 else:
                     algo_path = self.state['prefix'] + 'algo.npz'
         if self.state['rolling_vocab']:
             if large_path is None:
                 if not self.state['overwrite']:
-                    large_path = self.state['prefix'] + 'large' + str(self.save_iter) + '.npz'                    
+                    large_path = self.state['prefix'] + 'large' + str(self.save_iter) + '.npz'
                 else:
                     large_path = self.state['prefix'] + 'large.npz'
         try:
@@ -312,7 +312,7 @@ class MainLoop(object):
         vals['large_W_0_dec_approx_embdr'] = self.model.large_W_0_dec_approx_embdr
         vals['large_W2_dec_deep_softmax'] = self.model.large_W2_dec_deep_softmax
         vals['large_b_dec_deep_softmax'] = self.model.large_b_dec_deep_softmax
-        
+
         if self.state['save_algo']:
             vals['large_W_0_enc_approx_embdr_g2'] = self.algo.large_W_0_enc_approx_embdr_g2
             vals['large_W_0_dec_approx_embdr_g2'] = self.algo.large_W_0_dec_approx_embdr_g2
@@ -323,13 +323,13 @@ class MainLoop(object):
             vals['large_W_0_dec_approx_embdr_d2'] = self.algo.large_W_0_dec_approx_embdr_d2
             vals['large_W2_dec_deep_softmax_d2'] = self.algo.large_W2_dec_deep_softmax_d2
             vals['large_b_dec_deep_softmax_d2'] = self.algo.large_b_dec_deep_softmax_d2
-            
+
             if self.state['save_gs']:
                 vals['large_W_0_enc_approx_embdr_gs'] = self.algo.large_W_0_enc_approx_embdr_gs
                 vals['large_W_0_dec_approx_embdr_gs'] = self.algo.large_W_0_dec_approx_embdr_gs
                 vals['large_W2_dec_deep_softmax_gs'] = self.algo.large_W2_dec_deep_softmax_gs
                 vals['large_b_dec_deep_softmax_gs'] = self.algo.large_b_dec_deep_softmax_gs
-        
+
         numpy.savez(filename, **vals)
 
     def load_large_params(self, filename):
@@ -341,7 +341,7 @@ class MainLoop(object):
         self.model.large_W_0_dec_approx_embdr = vals['large_W_0_dec_approx_embdr']
         self.model.large_W2_dec_deep_softmax = vals['large_W2_dec_deep_softmax']
         self.model.large_b_dec_deep_softmax = vals['large_b_dec_deep_softmax']
-        
+
         if self.state['save_algo']:
             self.algo.large_W_0_enc_approx_embdr_g2 = vals['large_W_0_enc_approx_embdr_g2']
             self.algo.large_W_0_dec_approx_embdr_g2 = vals['large_W_0_dec_approx_embdr_g2']
@@ -362,7 +362,7 @@ class MainLoop(object):
     def roll_vocab_small2large(self):
         # Transfer from small to large parameters
         logger.debug("Called roll_vocab_small2large()")
-        
+
         temp = self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
@@ -543,7 +543,7 @@ class MainLoop(object):
             self.train_data.next()
 
         if self.state['rolling_vocab']:
-            # Make sure dictionary is current. 
+            # Make sure dictionary is current.
             # If training is interrupted when the vocabularies are exchanged,
             # things may get broken.
             step_modulo = self.step % self.model.total_num_batches
@@ -656,7 +656,7 @@ class MainLoop(object):
                         self.timings['super_step'] = self.step
                         # Step at start of superbatch. super_step < step
                         self.timings['next_offset'] = self.train_data.next_offset
-                        # Where to start after reload. Will need to call next() a few times              
+                        # Where to start after reload. Will need to call next() a few times
                 else:
                     self.timings['step'] = self.step
                     self.timings['next_offset'] = self.train_data.next_offset
