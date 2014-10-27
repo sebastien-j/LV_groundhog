@@ -564,8 +564,6 @@ class MainLoop(object):
                (time.time() - start_time)/60. < self.state['timeStop'] and
                self.state['lr'] > self.state['minlr']):
             if self.step > 0 and (time.time() - self.save_time)/60. >= self.state['saveFreq']:
-                if self.state['rolling_vocab']:
-                    self.roll_vocab_small2large()
                 self.save()
                 if self.channel is not None:
                     self.channel.save()
@@ -607,8 +605,6 @@ class MainLoop(object):
                    numpy.isnan(rvals['cost'])) and\
                    self.state['on_nan'] == 'raise':
                     self.state['gotNaN'] = 1
-                    if self.state['rolling_vocab']:
-                        self.roll_vocab_small2large()
                     self.save()
                     if self.channel:
                         self.channel.save()
