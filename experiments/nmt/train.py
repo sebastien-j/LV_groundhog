@@ -38,16 +38,17 @@ class RandomSamplePrinter(object):
         while sample_idx < self.state['n_examples']:
             batch = self.train_iter.next(peek=True)
             xs, ys = batch['x'], batch['y']
-            small_xs = replace_array(xs, self.model.large2small_src)
-            small_ys = replace_array(ys, self.model.large2small_trgt)
+            if self.state['rolling_vocab']:
+                small_xs = replace_array(xs, self.model.large2small_src)
+                small_ys = replace_array(ys, self.model.large2small_trgt)
             for seq_idx in range(xs.shape[1]):
                 if sample_idx == self.state['n_examples']:
                     break
 
                 x, y = xs[:, seq_idx], ys[:, seq_idx]
-                small_x = small_xs[:, seq_idx]
-                small_y = small_ys[:, seq_idx]
                 if self.state['rolling_vocab']:
+                    small_x = small_xs[:, seq_idx]
+                    small_y = small_ys[:, seq_idx]
                     x_words = cut_eol(map(lambda w_idx : self.model.large2word_src[w_idx], x))
                     y_words = cut_eol(map(lambda w_idx : self.model.large2word_trgt[w_idx], y))
                     #Alternatively
