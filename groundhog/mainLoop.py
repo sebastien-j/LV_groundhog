@@ -234,7 +234,7 @@ class MainLoop(object):
             self.model.save(self.state['prefix']+'model.npz')
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
                 self.algo.save(self.state['prefix']+'algo.npz')
-            if self.state['rolling_vocab']:
+            if self.state['rolling_vocab'] and not self.state['fixed_embeddings']:
                 self.save_large_params(self.state['prefix']+'large.npz')
         else:
             numpy.savez(self.state['prefix']+'timing' + str(self.save_iter) + '.npz',
@@ -243,7 +243,7 @@ class MainLoop(object):
                             'model%d.npz' % self.save_iter)
             if self.state['algo'] == 'SGD_adadelta' and self.state['save_algo']:
                 self.algo.save(self.state['prefix']+'algo%d.npz' % self.save_iter)
-            if self.state['rolling_vocab']:
+            if self.state['rolling_vocab'] and not self.state['fixed_embeddings']:
                 self.save_large_params(self.state['prefix']+'large%d.npz' % self.save_iter)
         cPickle.dump(self.state, open(self.state['prefix']+'state.pkl', 'w'))
         self.save_iter += 1
@@ -339,7 +339,7 @@ class MainLoop(object):
         self.model.large_W2_dec_deep_softmax = vals['large_W2_dec_deep_softmax']
         self.model.large_b_dec_deep_softmax = vals['large_b_dec_deep_softmax']
 
-        if self.state['save_algo']:
+        if self.state['save_algo'] and not self.state['fixed_embeddings']:
             self.algo.large_W_0_enc_approx_embdr_g2 = vals['large_W_0_enc_approx_embdr_g2']
             self.algo.large_W_0_dec_approx_embdr_g2 = vals['large_W_0_dec_approx_embdr_g2']
             self.algo.large_W2_dec_deep_softmax_g2 = vals['large_W2_dec_deep_softmax_g2']
@@ -361,56 +361,64 @@ class MainLoop(object):
         logger.debug("Called roll_vocab_small2large()")
 
         temp = self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         for large in self.model.large2small_src:
             small = self.model.large2small_src[large]
             self.model.large_W_0_enc_approx_embdr[large] = temp[small]
-            self.algo.large_W_0_enc_approx_embdr_g2[large] = temp_g2[small]
-            self.algo.large_W_0_enc_approx_embdr_d2[large] = temp_d2[small]
-            if self.state['save_gs']:
-                self.algo.large_W_0_enc_approx_embdr_gs[large] = temp_gs[small]
+            if not self.state['fixed_embeddings']:
+                self.algo.large_W_0_enc_approx_embdr_g2[large] = temp_g2[small]
+                self.algo.large_W_0_enc_approx_embdr_d2[large] = temp_d2[small]
+                if self.state['save_gs']:
+                    self.algo.large_W_0_enc_approx_embdr_gs[large] = temp_gs[small]
 
         temp = self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
         for large in self.model.large2small_trgt:
             small = self.model.large2small_trgt[large]
             self.model.large_W_0_dec_approx_embdr[large] = temp[small]
-            self.algo.large_W_0_dec_approx_embdr_g2[large] = temp_g2[small]
-            self.algo.large_W_0_dec_approx_embdr_d2[large] = temp_d2[small]
-            if self.state['save_gs']:
-                self.algo.large_W_0_dec_approx_embdr_gs[large] = temp_gs[small]
+            if not self.state['fixed_embeddings']:
+                self.algo.large_W_0_dec_approx_embdr_g2[large] = temp_g2[small]
+                self.algo.large_W_0_dec_approx_embdr_d2[large] = temp_d2[small]
+                if self.state['save_gs']:
+                    self.algo.large_W_0_dec_approx_embdr_gs[large] = temp_gs[small]
 
         temp = self.model.params[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].get_value()
         for large in self.model.large2small_trgt:
             small = self.model.large2small_trgt[large]
             self.model.large_W2_dec_deep_softmax[:,large] = temp[:,small]
-            self.algo.large_W2_dec_deep_softmax_g2[:,large] = temp_g2[:,small]
-            self.algo.large_W2_dec_deep_softmax_d2[:,large] = temp_d2[:,small]
-            if self.state['save_gs']:
-                self.algo.large_W2_dec_deep_softmax_gs[:,large] = temp_gs[:,small]
+            if not self.state['fixed_embeddings']:
+                self.algo.large_W2_dec_deep_softmax_g2[:,large] = temp_g2[:,small]
+                self.algo.large_W2_dec_deep_softmax_d2[:,large] = temp_d2[:,small]
+                if self.state['save_gs']:
+                    self.algo.large_W2_dec_deep_softmax_gs[:,large] = temp_gs[:,small]
 
         temp = self.model.params[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].get_value()
         for large in self.model.large2small_trgt:
             small = self.model.large2small_trgt[large]
             self.model.large_b_dec_deep_softmax[large] = temp[small]
-            self.algo.large_b_dec_deep_softmax_g2[large] = temp_g2[small]
-            self.algo.large_b_dec_deep_softmax_d2[large] = temp_d2[small]
-            if self.state['save_gs']:
-                self.algo.large_b_dec_deep_softmax_gs[large] = temp_gs[small]
+            if not self.state['fixed_embeddings']:
+                self.algo.large_b_dec_deep_softmax_g2[large] = temp_g2[small]
+                self.algo.large_b_dec_deep_softmax_d2[large] = temp_d2[small]
+                if self.state['save_gs']:
+                    self.algo.large_b_dec_deep_softmax_gs[large] = temp_gs[small]
 
     def roll_vocab_update_dicts(self, new_large2small_src, new_large2small_trgt):
         # Update dictionaries
@@ -436,76 +444,88 @@ class MainLoop(object):
         logger.debug("Called roll_vocab_large2small()")
 
         temp = self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].get_value()
         for small in self.model.small2large_src:
             large = self.model.small2large_src[small]
             temp[small] = self.model.large_W_0_enc_approx_embdr[large]
-            temp_g2[small] = self.algo.large_W_0_enc_approx_embdr_g2[large]
-            temp_d2[small] = self.algo.large_W_0_enc_approx_embdr_d2[large]
-            if self.state['save_gs']:
-                temp_gs[small] = self.algo.large_W_0_enc_approx_embdr_gs[large]
+            if not self.state['fixed_embeddings']:
+                temp_g2[small] = self.algo.large_W_0_enc_approx_embdr_g2[large]
+                temp_d2[small] = self.algo.large_W_0_enc_approx_embdr_d2[large]
+                if self.state['save_gs']:
+                    temp_gs[small] = self.algo.large_W_0_enc_approx_embdr_gs[large]
         self.model.params[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp)
-        self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_g2)
-        self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_d2)
-        if self.state['save_gs']:
-            self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_gs)
+        if not self.state['fixed_embeddings']:
+            self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_g2)
+            self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_d2)
+            if self.state['save_gs']:
+                self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
         for small in self.model.small2large_trgt:
             large = self.model.small2large_trgt[small]
             temp[small] = self.model.large_W_0_dec_approx_embdr[large]
-            temp_g2[small] = self.algo.large_W_0_dec_approx_embdr_g2[large]
-            temp_d2[small] = self.algo.large_W_0_dec_approx_embdr_d2[large]
-            if self.state['save_gs']:
-                temp_gs[small] = self.algo.large_W_0_dec_approx_embdr_gs[large]
+            if not self.state['fixed_embeddings']:
+                temp_g2[small] = self.algo.large_W_0_dec_approx_embdr_g2[large]
+                temp_d2[small] = self.algo.large_W_0_dec_approx_embdr_d2[large]
+                if self.state['save_gs']:
+                    temp_gs[small] = self.algo.large_W_0_dec_approx_embdr_gs[large]
         self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp)
-        self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_g2)
-        self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_d2)
-        if self.state['save_gs']:
-            self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_gs)
+        if not self.state['fixed_embeddings']:
+            self.algo.gnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_g2)
+            self.algo.dnorm2[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_d2)
+            if self.state['save_gs']:
+                self.algo.gs[self.model.name2pos['W_0_dec_approx_embdr']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].get_value()
         for small in self.model.small2large_trgt:
             large = self.model.small2large_trgt[small]
             temp[:,small] = self.model.large_W2_dec_deep_softmax[:,large]
-            temp_g2[:,small] = self.algo.large_W2_dec_deep_softmax_g2[:,large]
-            temp_d2[:,small] = self.algo.large_W2_dec_deep_softmax_d2[:,large]
-            if self.state['save_gs']:
-                temp_gs[:,small] = self.algo.large_W2_dec_deep_softmax_gs[:,large]
+            if not self.state['fixed_embeddings']:
+                temp_g2[:,small] = self.algo.large_W2_dec_deep_softmax_g2[:,large]
+                temp_d2[:,small] = self.algo.large_W2_dec_deep_softmax_d2[:,large]
+                if self.state['save_gs']:
+                    temp_gs[:,small] = self.algo.large_W2_dec_deep_softmax_gs[:,large]
         self.model.params[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp)
-        self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_g2)
-        self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_d2)
-        if self.state['save_gs']:
-            self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_gs)
+        if not self.state['fixed_embeddings']:
+            self.algo.gnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_g2)
+            self.algo.dnorm2[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_d2)
+            if self.state['save_gs']:
+                self.algo.gs[self.model.name2pos['W2_dec_deep_softmax']].set_value(temp_gs)
 
         temp = self.model.params[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
-        if self.state['save_gs']:
-            temp_gs = self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].get_value()
+        if not self.state['fixed_embeddings']:
+            temp_g2 = self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+            temp_d2 = self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].get_value()
+            if self.state['save_gs']:
+                temp_gs = self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].get_value()
         for small in self.model.small2large_trgt:
             large = self.model.small2large_trgt[small]
             temp[small] = self.model.large_b_dec_deep_softmax[large]
-            temp_g2[small] = self.algo.large_b_dec_deep_softmax_g2[large]
-            temp_d2[small] = self.algo.large_b_dec_deep_softmax_d2[large]
-            if self.state['save_gs']:
-                temp_gs[small] = self.algo.large_b_dec_deep_softmax_gs[large]
+            if not self.state['fixed_embeddings']:
+                temp_g2[small] = self.algo.large_b_dec_deep_softmax_g2[large]
+                temp_d2[small] = self.algo.large_b_dec_deep_softmax_d2[large]
+                if self.state['save_gs']:
+                    temp_gs[small] = self.algo.large_b_dec_deep_softmax_gs[large]
         self.model.params[self.model.name2pos['b_dec_deep_softmax']].set_value(temp)
-        self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_g2)
-        self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_d2)
-        if self.state['save_gs']:
-            self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_gs)
+        if not self.state['fixed_embeddings']:
+            self.algo.gnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_g2)
+            self.algo.dnorm2[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_d2)
+            if self.state['save_gs']:
+                self.algo.gs[self.model.name2pos['b_dec_deep_softmax']].set_value(temp_gs)
 
     def main(self):
         assert self.reset == -1
