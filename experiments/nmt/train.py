@@ -126,6 +126,8 @@ def main():
         state['save_algo'] = 0
     if 'save_gs' not in state:
         state['save_gs'] = 0
+    if 'fixed_embeddings' not in state:
+        state['fixed_embeddings'] = False
     if 'save_iter' not in state:
         state['save_iter'] = -1
 
@@ -142,7 +144,8 @@ def main():
     if state['rolling_vocab']:
         logger.debug("Initializing extra parameters")
         init_extra_parameters(lm_model, state)
-        init_adadelta_extra_parameters(algo, state)
+        if not state['fixed_embeddings']:
+            init_adadelta_extra_parameters(algo, state)
         with open(state['rolling_vocab_dict'], 'rb') as f:
             lm_model.rolling_vocab_dict = cPickle.load(f)
         lm_model.total_num_batches = max(lm_model.rolling_vocab_dict)
