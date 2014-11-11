@@ -125,8 +125,11 @@ class BeamSearch(object):
                 logger.warning("Did not manage without UNK")
                 return self.search(seq, n_samples, False, minlen)
             elif n_samples < 500:
-                logger.warning("Still no translations: try beam size {}".format(n_samples * 2))
-                return self.search(seq, n_samples * 2, False, minlen)
+                #logger.warning("Still no translations: try beam size {}".format(n_samples * 2))
+                #return self.search(seq, n_samples * 2, False, minlen)
+                logger.warning("No appropriate translation")
+                fin_trans=[[]]
+                fin_costs = [0.0]
             else:
                 logger.error("Translation failed")
 
@@ -153,7 +156,7 @@ def sample(lm_model, seq, n_samples,
                 ignore_unk=ignore_unk, minlen=len(seq) / 2)
         if normalize:
             counts = [len(s) for s in trans]
-            costs = [co / (cn**normalize_p) for co, cn in zip(costs, counts)]
+            costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
         for i in range(len(trans)):
             sen = indices_to_words(lm_model.word_indxs, trans[i])
             sentences.append(" ".join(sen))
@@ -180,7 +183,7 @@ def sample(lm_model, seq, n_samples,
             costs.append(-numpy.sum(probs))
         if normalize:
             counts = [len(s.strip().split(" ")) for s in sentences]
-            costs = [co / (cn**normalize_p) for co, cn in zip(costs, counts)]
+            costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
         sprobs = numpy.argsort(costs)
         if verbose:
             for pidx in sprobs:
