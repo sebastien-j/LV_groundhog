@@ -35,8 +35,9 @@ class BeamSearch(object):
     def __init__(self, enc_dec):
         self.enc_dec = enc_dec
         state = self.enc_dec.state
-        self.eos_id = state['null_sym_target']
-        self.unk_id = state['unk_sym_target']
+        # Do this elsewhere
+        #self.eos_id = state['null_sym_target']
+        #self.unk_id = state['unk_sym_target']
 
     def compile(self):
         self.comp_repr = self.enc_dec.create_representation_computer()
@@ -44,7 +45,7 @@ class BeamSearch(object):
         self.comp_next_probs = self.enc_dec.create_next_probs_computer()
         self.comp_next_states = self.enc_dec.create_next_states_computer()
 
-    def search(self, seq, n_samples, ignore_unk=False, minlen=1):
+    def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1):
         c = self.comp_repr(seq)[0]
         states = map(lambda x : x[None, :], self.comp_init_states(c))
         dim = states[0].shape[1]
@@ -71,10 +72,10 @@ class BeamSearch(object):
 
             # Adjust log probs according to search restrictions
             if ignore_unk:
-                log_probs[:,self.unk_id] = -numpy.inf
+                log_probs[:,unk_id] = -numpy.inf
             # TODO: report me in the paper!!!
             if k < minlen:
-                log_probs[:,self.eos_id] = -numpy.inf
+                log_probs[:,eos_id] = -numpy.inf
 
             # Find the best options by calling argpartition of flatten array
             next_costs = numpy.array(costs)[:, None] - log_probs
@@ -145,51 +146,27 @@ def indices_to_words(i2w, seq):
         sen.append(i2w[seq[k]])
     return sen
 
-def sample(lm_model, seq, n_samples,
+def sample(lm_model, seq, n_samples, eos_id, unk_id,
         sampler=None, beam_search=None,
         ignore_unk=False, normalize=False,
         normalize_p = 1.0,
         alpha=1, verbose=False):
     if beam_search:
         sentences = []
-        trans, costs = beam_search.search(seq, n_samples,
+        trans, costs = beam_search.search(seq, n_samples, eos_id=eos_id, unk_id=unk_id,
                 ignore_unk=ignore_unk, minlen=len(seq) / 2)
         if normalize:
             counts = [len(s) for s in trans]
             costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
         for i in range(len(trans)):
-            sen = indices_to_words(lm_model.word_indxs, trans[i])
+            sen = indices_to_words(lm_model.word_indxs, trans[i]) # Make sure that indices_to_words has been changed
             sentences.append(" ".join(sen))
         for i in range(len(costs)):
             if verbose:
                 print "{}: {}".format(costs[i], sentences[i])
         return sentences, costs, trans
     elif sampler:
-        sentences = []
-        all_probs = []
-        costs = []
-
-        values, cond_probs = sampler(n_samples, 3 * (len(seq) - 1), alpha, seq)
-        for sidx in xrange(n_samples):
-            sen = []
-            for k in xrange(values.shape[0]):
-                if lm_model.word_indxs[values[k, sidx]] == '<eol>':
-                    break
-                sen.append(lm_model.word_indxs[values[k, sidx]])
-            sentences.append(" ".join(sen))
-            probs = cond_probs[:, sidx]
-            probs = numpy.array(cond_probs[:len(sen) + 1, sidx])
-            all_probs.append(numpy.exp(-probs))
-            costs.append(-numpy.sum(probs))
-        if normalize:
-            counts = [len(s.strip().split(" ")) for s in sentences]
-            costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
-        sprobs = numpy.argsort(costs)
-        if verbose:
-            for pidx in sprobs:
-                print "{}: {} {} {}".format(pidx, -costs[pidx], all_probs[pidx], sentences[pidx])
-            print
-        return sentences, costs, None
+        raise NotImplementedError
     else:
         raise Exception("I don't know what to do")
 
@@ -219,6 +196,15 @@ def parse_args():
     parser.add_argument("--verbose",
             action="store_true", default=False,
             help="Be verbose")
+    parser.add_argument("--topn-file",
+         type=str,
+         help="Binarized topn list for each source word (Vocabularies must correspond)")
+    parser.add_argument("--num-common",
+         type=int,
+         help="Number of always used common words (inc. <eos>, UNK)")
+    parser.add_argument("--num-ttables",
+         type=int,
+         help="Number of target words taken from the T-tables for each input word")
     parser.add_argument("model_path",
             help="Path to the model")
     parser.add_argument("changes",
@@ -245,12 +231,17 @@ def main():
     if 'save_iter' not in state:
         state['save_iter'] = -1
 
+    with open(args.topn_file, 'rb') as f:
+        topn = cPickle.load(f) # Load dictionary (source word index : list of target word indices)
+    for elt in topn:
+        topn[elt] = set(topn[elt][:args.num_ttables]) # Take the first args.num_ttables only and convert list to set
+ 
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, skip_init=True)
     enc_dec.build()
     lm_model = enc_dec.create_lm_model()
     lm_model.load(args.model_path)
-    indx_word = cPickle.load(open(state['word_indx'],'rb'))
+    indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
 
     sampler = None
     beam_search = None
@@ -258,10 +249,18 @@ def main():
         beam_search = BeamSearch(enc_dec)
         beam_search.compile()
     else:
-        sampler = enc_dec.create_sampler(many_samples=True)
+        raise NotImplementedError
+        #sampler = enc_dec.create_sampler(many_samples=True)
 
-    idict_src = cPickle.load(open(state['indx_word'],'r'))
-
+    idict_src = cPickle.load(open(state['indx_word'],'r')) #Source i2w
+    
+    original_target_i2w = lm_model.word_indxs.copy()
+    # I don't think that we need target_word2index
+    
+    original_W_0_dec_approx_embdr = lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].get_value()
+    original_W2_dec_deep_softmax = lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].get_value()
+    original_b_dec_deep_softmax = lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].get_value()
+ 
     if args.source and args.trans:
         # Actually only beam search is currently supported here
         assert beam_search
@@ -277,12 +276,27 @@ def main():
         logging.debug("Beam size: {}".format(n_samples))
         for i, line in enumerate(fsrc):
             seqin = line.strip()
-            seq, parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src)
+            seq, parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src) # seq is the ndarray of indices
+            # For now, keep all input words in the model.
+            # In the future, we may want to filter them to save on memory, but this isn't really much of an issue now
             if args.verbose:
                 print "Parsed Input:", parsed_in
+            # Extract the indices you need
+            indices = set()
+            for elt in seq[:-1]: # Exclude the EOL token
+                indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
+            indices = indices.union(set(xrange(args.num_common))) # Add common words
+            indices = list(indices) # Convert back to list for advanced indexing
+            eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
+            unk_id = indices.index(state['unk_sym_target'])
+            # Set the target word matrices and biases
+            lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[indices])
+            lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[:, indices])
+            lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[indices])
+            lm_model.word_indxs = dict([(i, original_target_i2w[i]) for i in indices]) # target index2word
             trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
                     beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
-                    normalize_p=args.normalize_p)
+                    normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id)
             best = numpy.argmin(costs)
             print >>ftrans, trans[best]
             if args.verbose:
@@ -297,24 +311,7 @@ def main():
         fsrc.close()
         ftrans.close()
     else:
-        while True:
-            try:
-                seqin = raw_input('Input Sequence: ')
-                n_samples = int(raw_input('How many samples? '))
-                alpha = None
-                if not args.beam_search:
-                    alpha = float(raw_input('Inverse Temperature? '))
-                seq,parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src)
-                print "Parsed Input:", parsed_in
-            except Exception:
-                print "Exception while parsing your input:"
-                traceback.print_exc()
-                continue
-
-            sample(lm_model, seq, n_samples, sampler=sampler,
-                    beam_search=beam_search,
-                    ignore_unk=args.ignore_unk, normalize=args.normalize, normalize_p=args.normalize_p,
-                    alpha=alpha, verbose=True)
+        raise NotImplementedError
 
 if __name__ == "__main__":
     main()
