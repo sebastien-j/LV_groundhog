@@ -293,7 +293,7 @@ def main():
             lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[indices])
             lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[:, indices])
             lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[indices])
-            lm_model.word_indxs = dict([(i, original_target_i2w[i]) for i in indices]) # target index2word
+            lm_model.word_indxs = dict([(i, original_target_i2w[index]) for i, index in enumerate(indices)]) # target index2word
             trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
                     beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
                     normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id)
