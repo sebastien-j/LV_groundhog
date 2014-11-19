@@ -284,7 +284,8 @@ def main():
             # Extract the indices you need
             indices = set()
             for elt in seq[:-1]: # Exclude the EOL token
-                indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
+                if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                    indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
             indices = indices.union(set(xrange(args.num_common))) # Add common words
             indices = list(indices) # Convert back to list for advanced indexing
             eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
