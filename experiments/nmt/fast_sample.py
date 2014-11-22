@@ -110,7 +110,7 @@ class BeamSearch(object):
             costs = []
             indices = []
             for i in range(n_samples):
-                if new_trans[i][-1] != self.enc_dec.state['null_sym_target']:
+                if new_trans[i][-1] != eos_id:
                     trans.append(new_trans[i])
                     costs.append(new_costs[i])
                     indices.append(i)
