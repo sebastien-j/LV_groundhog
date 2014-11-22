@@ -45,7 +45,7 @@ class BeamSearch(object):
         self.comp_next_probs = self.enc_dec.create_next_probs_computer()
         self.comp_next_states = self.enc_dec.create_next_states_computer()
 
-    def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1):
+    def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1, final=False):
         c = self.comp_repr(seq)[0]
         states = map(lambda x : x[None, :], self.comp_init_states(c))
         dim = states[0].shape[1]
@@ -124,15 +124,15 @@ class BeamSearch(object):
         if not len(fin_trans):
             if ignore_unk:
                 logger.warning("Did not manage without UNK")
-                return self.search(seq, n_samples, False, minlen)
-            elif n_samples < 500:
-                #logger.warning("Still no translations: try beam size {}".format(n_samples * 2))
-                #return self.search(seq, n_samples * 2, False, minlen)
-                logger.warning("No appropriate translation")
+                return self.search(seq, n_samples, eos_id=eos_id, unk_id=unk_id, ignore_unk=False, minlen=minlen, final=final)
+            elif not final:
+                logger.warning("No appropriate translations: using larger vocabulary")
+                raise RuntimeError
+            else:
+                logger.warning("No appropriate translation: return empty translation")
                 fin_trans=[[]]
                 fin_costs = [0.0]
-            else:
-                logger.error("Translation failed")
+                
 
         fin_trans = numpy.array(fin_trans)[numpy.argsort(fin_costs)]
         fin_costs = numpy.array(sorted(fin_costs))
@@ -150,11 +150,11 @@ def sample(lm_model, seq, n_samples, eos_id, unk_id,
         sampler=None, beam_search=None,
         ignore_unk=False, normalize=False,
         normalize_p = 1.0,
-        alpha=1, verbose=False):
+        alpha=1, verbose=False, final=False):
     if beam_search:
         sentences = []
         trans, costs = beam_search.search(seq, n_samples, eos_id=eos_id, unk_id=unk_id,
-                ignore_unk=ignore_unk, minlen=len(seq) / 2)
+                ignore_unk=ignore_unk, minlen=len(seq) / 2, final=final)
         if normalize:
             counts = [len(s) for s in trans]
             costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
@@ -205,6 +205,9 @@ def parse_args():
     parser.add_argument("--num-ttables",
          type=int,
          help="Number of target words taken from the T-tables for each input word")
+    parser.add_argument("--final",
+            action="store_true", default=False,
+            help="Do not try to expand the vocabulary if a translation fails")
     parser.add_argument("model_path",
             help="Path to the model")
     parser.add_argument("changes",
@@ -260,6 +263,7 @@ def main():
     original_W_0_dec_approx_embdr = lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].get_value()
     original_W2_dec_deep_softmax = lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].get_value()
     original_b_dec_deep_softmax = lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].get_value()
+    max_words = len(original_b_dec_deep_softmax)
  
     if args.source and args.trans:
         # Actually only beam search is currently supported here
@@ -286,18 +290,33 @@ def main():
             for elt in seq[:-1]: # Exclude the EOL token
                 if elt != 1: # Exclude OOV (1 will not be a key of topn)
                     indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
-            indices = indices.union(set(xrange(args.num_common))) # Add common words
-            indices = list(indices) # Convert back to list for advanced indexing
-            eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
-            unk_id = indices.index(state['unk_sym_target'])
-            # Set the target word matrices and biases
-            lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[indices])
-            lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[:, indices])
-            lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[indices])
-            lm_model.word_indxs = dict([(j, original_target_i2w[index]) for j, index in enumerate(indices)]) # target index2word
-            trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
-                    beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
-                    normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id)
+            num_common_words = args.num_common
+            while True:
+                if num_common_words >= max_words:
+                    final = True
+                    num_common_words = max_words
+                else:
+                    final = False
+
+                if args.final: # No matter the number of words
+                    final = True
+                indices = indices.union(set(xrange(num_common_words))) # Add common words
+                indices = list(indices) # Convert back to list for advanced indexing
+                eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
+                unk_id = indices.index(state['unk_sym_target'])
+                # Set the target word matrices and biases
+                lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[indices])
+                lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[:, indices])
+                lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[indices])
+                lm_model.word_indxs = dict([(j, original_target_i2w[index]) for j, index in enumerate(indices)]) # target index2word
+                try:
+                    trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
+                            beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
+                            normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=final)
+                    break # Breaks only if it succeeded (If final=True, wil always succeed)
+                except RuntimeError:
+                    indices = set(indices)
+                    num_common_words *= 2
             best = numpy.argmin(costs)
             print >>ftrans, trans[best]
             if args.verbose:
