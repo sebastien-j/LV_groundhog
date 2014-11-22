@@ -41,19 +41,24 @@ class BeamSearch(object):
         #self.unk_id = state['unk_sym_target']
 
     def compile(self):
-        self.comp_repr = self.enc_dec_0.create_representation_computer()
-        self.comp_init_states = self.enc_dec_0.create_initializers()
+        self.comp_repr_0 = self.enc_dec_0.create_representation_computer()
+        self.comp_repr_1 = self.enc_dec_1.create_representation_computer()
+        self.comp_init_states_0 = self.enc_dec_0.create_initializers()
+        self.comp_init_states_1 = self.enc_dec_1.create_initializers()
         self.comp_next_probs_0 = self.enc_dec_0.create_next_probs_computer()
         self.comp_next_probs_1 = self.enc_dec_1.create_next_probs_computer()
-        self.comp_next_states = self.enc_dec_0.create_next_states_computer()
+        self.comp_next_states_0 = self.enc_dec_0.create_next_states_computer()
+        self.comp_next_states_1 = self.enc_dec_1.create_next_states_computer()
 
     def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1, final=False):
-        c = self.comp_repr(seq)[0]
-        states = map(lambda x : x[None, :], self.comp_init_states(c))
-        dim = states[0].shape[1]
+        c_0 = self.comp_repr_0(seq)[0]
+        c_1 = self.comp_repr_1(seq)[0]
+        states_0 = map(lambda x : x[None, :], self.comp_init_states_0(c_0))
+        states_1 = map(lambda x : x[None, :], self.comp_init_states_1(c_1))
+        dim = states_0[0].shape[1]
 
-        num_levels = len(states)
-
+        num_levels = len(states_0)
+        assert (num_levels == len(states_1))
         fin_trans = []
         fin_costs = []
 
@@ -70,7 +75,7 @@ class BeamSearch(object):
             last_words = (numpy.array(map(lambda t : t[-1], trans))
                     if k > 0
                     else numpy.zeros(beam_size, dtype="int64"))
-            log_probs = (numpy.log(self.comp_next_probs_0(c, k, last_words, *states)[0]) +  numpy.log(self.comp_next_probs_1(c, k, last_words, *states)[0]))/2.
+            log_probs = (numpy.log(self.comp_next_probs_0(c_0, k, last_words, *states_0)[0]) +  numpy.log(self.comp_next_probs_1(c_1, k, last_words, *states_1)[0]))/2.
 
             # Adjust log probs according to search restrictions
             if ignore_unk:
@@ -95,7 +100,9 @@ class BeamSearch(object):
             # Form a beam for the next iteration
             new_trans = [[]] * n_samples
             new_costs = numpy.zeros(n_samples)
-            new_states = [numpy.zeros((n_samples, dim), dtype="float32") for level
+            new_states_0 = [numpy.zeros((n_samples, dim), dtype="float32") for level
+                    in range(num_levels)]
+            new_states_1 = [numpy.zeros((n_samples, dim), dtype="float32") for level
                     in range(num_levels)]
             inputs = numpy.zeros(n_samples, dtype="int64")
             for i, (orig_idx, next_word, next_cost) in enumerate(
@@ -103,9 +110,11 @@ class BeamSearch(object):
                 new_trans[i] = trans[orig_idx] + [next_word]
                 new_costs[i] = next_cost
                 for level in range(num_levels):
-                    new_states[level][i] = states[level][orig_idx]
+                    new_states_0[level][i] = states_0[level][orig_idx]
+                    new_states_1[level][i] = states_1[level][orig_idx]
                 inputs[i] = next_word
-            new_states = self.comp_next_states(c, k, inputs, *new_states)
+            new_states_0 = self.comp_next_states_0(c_0, k, inputs, *new_states_0)
+            new_states_1 = self.comp_next_states_1(c_1, k, inputs, *new_states_1)
 
             # Filter the sequences that end with end-of-sequence character
             trans = []
@@ -120,7 +129,8 @@ class BeamSearch(object):
                     n_samples -= 1
                     fin_trans.append(new_trans[i])
                     fin_costs.append(new_costs[i])
-            states = map(lambda x : x[indices], new_states)
+            states_0 = map(lambda x : x[indices], new_states_0)
+            states_1 = map(lambda x : x[indices], new_states_1)
 
         # Dirty tricks to obtain any translation
         if not len(fin_trans):
