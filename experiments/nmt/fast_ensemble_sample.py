@@ -213,7 +213,7 @@ def parse_args():
     parser.add_argument("--max-src-vocab", type=int,
             help="Maximum number of tokens in source vocab")
     parser.add_argument("--model-0",
-            help="Path to the zeroeth model"
+            help="Path to the zeroeth model")
     parser.add_argument("--model-1",
             help="Path to the oneth model")
     parser.add_argument("changes",
