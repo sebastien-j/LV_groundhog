@@ -208,6 +208,8 @@ def parse_args():
     parser.add_argument("--final",
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails")
+    parser.add_argument("--max-src-vocab", type=int,
+            help="Maximum number of tokens in source vocab")
     parser.add_argument("model_path",
             help="Path to the model")
     parser.add_argument("changes",
@@ -245,6 +247,10 @@ def main():
     lm_model = enc_dec.create_lm_model()
     lm_model.load(args.model_path)
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
+    if args.max_src_vocab:
+        for elt in indx_word:
+            if indx_word[elt] >= max_source_vocab:
+                del indx_word[elt]
 
     sampler = None
     beam_search = None
@@ -256,6 +262,11 @@ def main():
         #sampler = enc_dec.create_sampler(many_samples=True)
 
     idict_src = cPickle.load(open(state['indx_word'],'r')) #Source i2w
+    if args.max_src_vocab:
+        for elt in idict_src:
+            if elt >= max_source_vocab:
+                del idict_src[elt]
+        lm_model.params[lm_model.name2pos['W_0_enc_approx_embdr']].set_value(lm_model.params[lm_model.name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
     
     original_target_i2w = lm_model.word_indxs.copy()
     # I don't think that we need target_word2index
