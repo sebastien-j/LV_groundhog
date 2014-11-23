@@ -36,6 +36,7 @@ class BeamSearch(object):
         self.enc_decs = enc_decs
 
     def compile(self):
+        num_models = len(self.enc_decs)
         self.comp_repr = []
         self.comp_init_states = []
         self.comp_next_probs = []
@@ -47,9 +48,10 @@ class BeamSearch(object):
             self.comp_next_states.append(self.enc_decs[i].create_next_states_computer())
 
     def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1, final=False):
+        num_models = len(self.enc_decs)
         c = []
         for i in xrange(num_models):
-            c.append(self.comp_repr[i](seq)[0]
+            c.append(self.comp_repr[i](seq)[0])
         states = []
         for i in xrange(num_models):
             states.append(map(lambda x : x[None, :], self.comp_init_states[i](c[i])))
@@ -112,9 +114,8 @@ class BeamSearch(object):
                     for j in xrange(num_models):
                         new_states[j][level][i] = states[j][level][orig_idx]
                 inputs[i] = next_word
-            new_states = []
             for i in xrange(num_models):
-                new_states.append(self.comp_next_states[i](c[i], k, inputs, *new_states[i]))
+                new_states[i]=self.comp_next_states[i](c[i], k, inputs, *new_states[i])
 
             # Filter the sequences that end with end-of-sequence character
             trans = []
@@ -129,9 +130,8 @@ class BeamSearch(object):
                     n_samples -= 1
                     fin_trans.append(new_trans[i])
                     fin_costs.append(new_costs[i])
-            states = []
             for i in xrange(num_models):
-                states.append(map(lambda x : x[indices], new_states[i]))
+                states[i]=map(lambda x : x[indices], new_states[i])
 
         # Dirty tricks to obtain any translation
         if not len(fin_trans):
@@ -256,12 +256,12 @@ def main():
  
     num_models = len(args.models)
     rng = numpy.random.RandomState(state['seed'])
-    encdecs = []
+    enc_decs = []
     lm_models = []
     for i in xrange(num_models):
-        encdecs[i] = RNNEncoderDecoder(state, rng, skip_init=True)
-        encdecs[i].build()
-        lm_models[i] = encdecs[i].create_lm_model()
+        enc_decs.append(RNNEncoderDecoder(state, rng, skip_init=True))
+        enc_decs[i].build()
+        lm_models.append(enc_decs[i].create_lm_model())
         lm_models[i].load(args.models[i])
 
     #enc_dec_0 = RNNEncoderDecoder(state, rng, skip_init=True)
@@ -296,7 +296,7 @@ def main():
     
     original_W_0_dec_approx_embdr = [lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value() for i in xrange(num_models)]
     original_W2_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value() for i in xrange(num_models)]
-    original_b_dec_deep_softmax = [lm_models[i].params[eval(lm_models[i].name2pos['b_dec_deep_softmax']].get_value() for i in xrange(num_models)]
+    original_b_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].get_value() for i in xrange(num_models)]
     #original_W_0_dec_approx_embdr_0 = lm_model_0.params[lm_model_0.name2pos['W_0_dec_approx_embdr']].get_value()
     #original_W2_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['W2_dec_deep_softmax']].get_value()
     #original_b_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['b_dec_deep_softmax']].get_value()
@@ -343,11 +343,11 @@ def main():
                 eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
                 unk_id = indices.index(state['unk_sym_target'])
                 # Set the target word matrices and biases
-                for i in xrange(num_models):
-                    lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[i][indices])
-                    lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[i][:, indices])
-                    lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[i][indices])
-                lm_models[0].word_indxs = dict([(j, original_target_i2w[index]) for j, index in enumerate(indices)]) # target index2word
+                for j in xrange(num_models):
+                    lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
+                    lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
+                    lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
+                lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
 
                 try:
                     trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
