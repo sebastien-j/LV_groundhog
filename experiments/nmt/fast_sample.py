@@ -221,8 +221,6 @@ def parse_args():
     parser.add_argument("--final",
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails")
-    parser.add_argument("--truecase",
-            help="Source sentence count dictionary. Convert words (except first one) to truecase, then translate")
     parser.add_argument("--max-src-vocab", type=int,
             help="Maximum number of tokens in source vocab")
     parser.add_argument("--models", nargs = '+', required=True,
@@ -304,11 +302,7 @@ def main():
     #original_b_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['b_dec_deep_softmax']].get_value()
 
     max_words = len(original_b_dec_deep_softmax[0])
-
-    if args.truecase:
-        with open(args.truecase, 'rb') as f:
-            count_dict = cPickle.load(f)
-
+ 
     if args.source and args.trans:
         # Actually only beam search is currently supported here
         assert beam_search
@@ -324,12 +318,6 @@ def main():
         logging.debug("Beam size: {}".format(n_samples))
         for i, line in enumerate(fsrc):
             seqin = line.strip()
-            if args.truecase:
-                seqin_split() = seqin.split()
-                for j in xrange(1,len(seqin_split)): # Leave the first word as it is (may change this later)
-                    if count_dict[seqin_split[j].decode('utf-8').lower().encode('utf-8')] > count_dict[seqin_split[j]]:
-                        seqin_split[j] = seqin_split[j].decode('utf-8').lower().encode('utf-8')
-                seqin = ' '.join(seqin_split)
             seq, parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src) # seq is the ndarray of indices
             # For now, keep all input words in the model.
             # In the future, we may want to filter them to save on memory, but this isn't really much of an issue now
