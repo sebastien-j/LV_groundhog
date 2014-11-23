@@ -272,7 +272,7 @@ def main():
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
     if args.max_src_vocab:
         for elt in indx_word:
-            if indx_word[elt] >= max_source_vocab:
+            if indx_word[elt] >= args.max_src_vocab:
                 del indx_word[elt]
 
     sampler = None
@@ -287,10 +287,10 @@ def main():
     idict_src = cPickle.load(open(state['indx_word'],'r')) #Source i2w
     if args.max_src_vocab:
         for elt in idict_src:
-            if elt >= max_source_vocab:
+            if elt >= args.max_src_vocab:
                 del idict_src[elt]
         for i in xrange(num_models):
-            lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
+            lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].get_value()[:args.max_src_vocab])
     
     original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
