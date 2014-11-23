@@ -325,7 +325,7 @@ def main():
         for i, line in enumerate(fsrc):
             seqin = line.strip()
             if args.truecase:
-                seqin_split() = seqin.split()
+                seqin_split = seqin.split()
                 for j in xrange(1,len(seqin_split)): # Leave the first word as it is (may change this later)
                     if count_dict[seqin_split[j].decode('utf-8').lower().encode('utf-8')] > count_dict[seqin_split[j]]:
                         seqin_split[j] = seqin_split[j].decode('utf-8').lower().encode('utf-8')
