@@ -271,7 +271,7 @@ def main():
 
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
     if args.max_src_vocab:
-        for elt in indx_word:
+        for elt in indx_word.keys():
             if indx_word[elt] >= args.max_src_vocab:
                 del indx_word[elt]
 
@@ -286,7 +286,7 @@ def main():
 
     idict_src = cPickle.load(open(state['indx_word'],'r')) #Source i2w
     if args.max_src_vocab:
-        for elt in idict_src:
+        for elt in idict_src.keys():
             if elt >= args.max_src_vocab:
                 del idict_src[elt]
         for i in xrange(num_models):
