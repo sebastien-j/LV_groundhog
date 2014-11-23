@@ -289,7 +289,8 @@ def main():
         for elt in idict_src:
             if elt >= max_source_vocab:
                 del idict_src[elt]
-        lm_models[0].params[lm_models[0].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[0].params[lm_models[0].name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
+        for i in xrange(num_models):
+            lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
     
     original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
