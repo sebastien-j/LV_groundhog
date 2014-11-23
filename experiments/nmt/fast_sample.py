@@ -32,25 +32,32 @@ class Timer(object):
 
 class BeamSearch(object):
 
-    def __init__(self, enc_dec):
-        self.enc_dec = enc_dec
-        state = self.enc_dec.state
-        # Do this elsewhere
-        #self.eos_id = state['null_sym_target']
-        #self.unk_id = state['unk_sym_target']
+    def __init__(self, enc_decs):
+        self.enc_decs = enc_decs
 
     def compile(self):
-        self.comp_repr = self.enc_dec.create_representation_computer()
-        self.comp_init_states = self.enc_dec.create_initializers()
-        self.comp_next_probs = self.enc_dec.create_next_probs_computer()
-        self.comp_next_states = self.enc_dec.create_next_states_computer()
+        num_models = len(self.enc_decs)
+        self.comp_repr = []
+        self.comp_init_states = []
+        self.comp_next_probs = []
+        self.comp_next_states = []
+        for i in xrange(num_models):
+            self.comp_repr.append(self.enc_decs[i].create_representation_computer())
+            self.comp_init_states.append(self.enc_decs[i].create_initializers())
+            self.comp_next_probs.append(self.enc_decs[i].create_next_probs_computer())
+            self.comp_next_states.append(self.enc_decs[i].create_next_states_computer())
 
     def search(self, seq, n_samples, eos_id, unk_id, ignore_unk=False, minlen=1, final=False):
-        c = self.comp_repr(seq)[0]
-        states = map(lambda x : x[None, :], self.comp_init_states(c))
-        dim = states[0].shape[1]
+        num_models = len(self.enc_decs)
+        c = []
+        for i in xrange(num_models):
+            c.append(self.comp_repr[i](seq)[0])
+        states = []
+        for i in xrange(num_models):
+            states.append(map(lambda x : x[None, :], self.comp_init_states[i](c[i])))
+        dim = states[0][0].shape[1]
 
-        num_levels = len(states)
+        num_levels = len(states[0])
 
         fin_trans = []
         fin_costs = []
@@ -68,7 +75,8 @@ class BeamSearch(object):
             last_words = (numpy.array(map(lambda t : t[-1], trans))
                     if k > 0
                     else numpy.zeros(beam_size, dtype="int64"))
-            log_probs = numpy.log(self.comp_next_probs(c, k, last_words, *states)[0])
+            #log_probs = (numpy.log(self.comp_next_probs_0(c, k, last_words, *states)[0]) +  numpy.log(self.comp_next_probs_1(c, k, last_words, *states)[0]))/2.
+            log_probs = sum(numpy.log(self.comp_next_probs[i](c[i], k, last_words, *states[i])[0]) for i in xrange(num_models))/num_models
 
             # Adjust log probs according to search restrictions
             if ignore_unk:
@@ -93,17 +101,21 @@ class BeamSearch(object):
             # Form a beam for the next iteration
             new_trans = [[]] * n_samples
             new_costs = numpy.zeros(n_samples)
-            new_states = [numpy.zeros((n_samples, dim), dtype="float32") for level
-                    in range(num_levels)]
+            new_states = []
+            for i in xrange(num_models):
+                new_states.append([numpy.zeros((n_samples, dim), dtype="float32") for level
+                    in range(num_levels)])
             inputs = numpy.zeros(n_samples, dtype="int64")
             for i, (orig_idx, next_word, next_cost) in enumerate(
                     zip(trans_indices, word_indices, costs)):
                 new_trans[i] = trans[orig_idx] + [next_word]
                 new_costs[i] = next_cost
                 for level in range(num_levels):
-                    new_states[level][i] = states[level][orig_idx]
+                    for j in xrange(num_models):
+                        new_states[j][level][i] = states[j][level][orig_idx]
                 inputs[i] = next_word
-            new_states = self.comp_next_states(c, k, inputs, *new_states)
+            for i in xrange(num_models):
+                new_states[i]=self.comp_next_states[i](c[i], k, inputs, *new_states[i])
 
             # Filter the sequences that end with end-of-sequence character
             trans = []
@@ -118,7 +130,8 @@ class BeamSearch(object):
                     n_samples -= 1
                     fin_trans.append(new_trans[i])
                     fin_costs.append(new_costs[i])
-            states = map(lambda x : x[indices], new_states)
+            for i in xrange(num_models):
+                states[i]=map(lambda x : x[indices], new_states[i])
 
         # Dirty tricks to obtain any translation
         if not len(fin_trans):
@@ -210,9 +223,9 @@ def parse_args():
             help="Do not try to expand the vocabulary if a translation fails")
     parser.add_argument("--max-src-vocab", type=int,
             help="Maximum number of tokens in source vocab")
-    parser.add_argument("model_path",
-            help="Path to the model")
-    parser.add_argument("changes",
+    parser.add_argument("--models", nargs = '+', required=True,
+            help="path to the models")
+    parser.add_argument("--changes",
             nargs="?", default="",
             help="Changes to state")
     return parser.parse_args()
@@ -241,11 +254,21 @@ def main():
     for elt in topn:
         topn[elt] = set(topn[elt][:args.num_ttables]) # Take the first args.num_ttables only and convert list to set
  
+    num_models = len(args.models)
     rng = numpy.random.RandomState(state['seed'])
-    enc_dec = RNNEncoderDecoder(state, rng, skip_init=True)
-    enc_dec.build()
-    lm_model = enc_dec.create_lm_model()
-    lm_model.load(args.model_path)
+    enc_decs = []
+    lm_models = []
+    for i in xrange(num_models):
+        enc_decs.append(RNNEncoderDecoder(state, rng, skip_init=True))
+        enc_decs[i].build()
+        lm_models.append(enc_decs[i].create_lm_model())
+        lm_models[i].load(args.models[i])
+
+    #enc_dec_0 = RNNEncoderDecoder(state, rng, skip_init=True)
+    #enc_dec_0.build()
+    #lm_model_0 = enc_dec_0.create_lm_model()
+    #lm_model_0.load(args.model_0)
+
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
     if args.max_src_vocab:
         for elt in indx_word:
@@ -255,7 +278,7 @@ def main():
     sampler = None
     beam_search = None
     if args.beam_search:
-        beam_search = BeamSearch(enc_dec)
+        beam_search = BeamSearch(enc_decs)
         beam_search.compile()
     else:
         raise NotImplementedError
@@ -266,15 +289,19 @@ def main():
         for elt in idict_src:
             if elt >= max_source_vocab:
                 del idict_src[elt]
-        lm_model.params[lm_model.name2pos['W_0_enc_approx_embdr']].set_value(lm_model.params[lm_model.name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
+        lm_models[0].params[lm_models[0].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[0].params[lm_models[0].name2pos['W_0_enc_approx_embdr']].get_value()[:max_source_vocab])
     
-    original_target_i2w = lm_model.word_indxs.copy()
+    original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
     
-    original_W_0_dec_approx_embdr = lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].get_value()
-    original_W2_dec_deep_softmax = lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].get_value()
-    original_b_dec_deep_softmax = lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].get_value()
-    max_words = len(original_b_dec_deep_softmax)
+    original_W_0_dec_approx_embdr = [lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value() for i in xrange(num_models)]
+    original_W2_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value() for i in xrange(num_models)]
+    original_b_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].get_value() for i in xrange(num_models)]
+    #original_W_0_dec_approx_embdr_0 = lm_model_0.params[lm_model_0.name2pos['W_0_dec_approx_embdr']].get_value()
+    #original_W2_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['W2_dec_deep_softmax']].get_value()
+    #original_b_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['b_dec_deep_softmax']].get_value()
+
+    max_words = len(original_b_dec_deep_softmax[0])
  
     if args.source and args.trans:
         # Actually only beam search is currently supported here
@@ -316,12 +343,14 @@ def main():
                 eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
                 unk_id = indices.index(state['unk_sym_target'])
                 # Set the target word matrices and biases
-                lm_model.params[lm_model.name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[indices])
-                lm_model.params[lm_model.name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[:, indices])
-                lm_model.params[lm_model.name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[indices])
-                lm_model.word_indxs = dict([(j, original_target_i2w[index]) for j, index in enumerate(indices)]) # target index2word
+                for j in xrange(num_models):
+                    lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
+                    lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
+                    lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
+                lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
+
                 try:
-                    trans, costs, _ = sample(lm_model, seq, n_samples, sampler=sampler,
+                    trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
                             beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
                             normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=final)
                     break # Breaks only if it succeeded (If final=True, wil always succeed)
