@@ -32,6 +32,8 @@ parser.add_argument("-b", "--binarized-text", default='binarized_text.pkl',
                     help="the name of the pickled binarized text file")
 parser.add_argument("-d", "--dictionary", default='vocab.pkl',
                     help="the name of the pickled binarized text file")
+parser.add_argument("-r", "--reuse-dict", action="store_true",
+                    help="Reuse the dictionary. May not work with --ngram")
 parser.add_argument("-n", "--ngram", type=int, metavar="N",
                     help="create n-grams")
 parser.add_argument("-v", "--vocab", type=int, metavar="N",
@@ -167,8 +169,8 @@ def binarize():
                              dtype='uint16')
     binarized_corpora = []
     total_ngram_count = 0
-    for input_file, base_filename, sentence_count in \
-            zip(args.input, base_filenames, sentence_counts):
+    for input_file, base_filename in \
+            zip(args.input, base_filenames):
         input_filename = os.path.basename(input_file.name)
         logger.info("Binarizing %s." % (input_filename))
         binarized_corpus = []
@@ -242,6 +244,10 @@ if __name__ == "__main__":
     logger = logging.getLogger('preprocess')
     args = parser.parse_args()
     base_filenames = open_files()
-    combined_counter, sentence_counts, counters, vocab = create_dictionary()
+    if not args.reuse_dict:
+        combined_counter, sentence_counts, counters, vocab = create_dictionary()
+    else:
+        with open(args.dictionary, 'rb') as f:
+            vocab = cPickle.load(f)
     if args.ngram or args.pickle:
         binarize()
