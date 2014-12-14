@@ -60,6 +60,8 @@ class SGD(object):
         srng = RandomStreams(self.rng.randint(213))
         if state['fixed_embeddings']:
             self.restricted_list = ['W_0_enc_approx_embdr', 'W_0_dec_approx_embdr', 'W2_dec_deep_softmax', 'b_dec_deep_softmax']
+        else:
+            self.restricted_list = []
         self.filters = [0.0 if p.name in self.restricted_list else 1.0 for p in model.params]
         self.gs = [theano.shared(numpy.zeros(p.get_value(borrow=True).shape,
                                              dtype=theano.config.floatX),
