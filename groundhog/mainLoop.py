@@ -446,11 +446,11 @@ class MainLoop(object):
         self.state['n_sym_source'] = len(self.model.small2large_src)
         logger.debug("n_sym_source=%d" % self.state['n_sym_source'])
         temp = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
-            if not self.state['fixed_embeddings']:
-                temp_g2 = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
-                temp_d2 = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
-                if self.state['save_gs']:
-                    temp_gs = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
+        if not self.state['fixed_embeddings']:
+            temp_g2 = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
+            temp_d2 = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
+            if self.state['save_gs']:
+                temp_gs = numpy.empty((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32')
         for small in self.model.small2large_src:
             large = self.model.small2large_src[small]
             temp[small] = self.model.large_W_0_enc_approx_embdr[large]
