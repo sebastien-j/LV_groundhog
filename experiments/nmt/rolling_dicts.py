@@ -44,6 +44,8 @@ def main():
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
     logger.debug("State:\n{}".format(pprint.pformat(state)))
 
+    if 'var_src_len' not in state:
+        state['var_src_len'] = False
     state['rolling_vocab'] = True
     state['use_infinite_loop'] = False
     logger.debug("rolling_vocab set to True, 'use_infinite_loop' set to False")
@@ -53,16 +55,20 @@ def main():
     train_data = get_batch_iterator(state, rng)
     train_data.start(-1)
 
-    dx = {}
+    if state.get('var_src_len'):
+        dx = {}
+        Dx = {}
+        Cx = {}
+    else:
+        Dx = {}
     dy = {}
-    Dx = {}
     Dy = {}
-    Cx = {}
     Cy = {}
 
-    for i in xrange(state['n_sym_source']):
-        Dx[i] = i
-        Cx[i] = i
+    if state.get('var_src_len'):
+        for i in xrange(state['n_sym_source']):
+            Dx[i] = i
+            Cx[i] = i
     for i in xrange(state['n_sym_target']):
         Dy[i] = i
         Cy[i] = i
@@ -85,6 +91,15 @@ def main():
                         del C[word]
         return False
 
+    def unlimited_update_dicts(arr, D, size):
+        i_range, j_range = numpy.shape(arr)
+        for i in xrange(i_range):
+            for j in xrange(j_range):
+                word = arr[i,j]
+                if word not in D:
+                    D[word] = size
+                    size += 1
+
     prev_step = 0
     step = 0
     rolling_vocab_dict = {}
@@ -104,8 +119,12 @@ def main():
             stop = True
 
         if batch:
-            output = update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source'])
-            output += update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
+            if state.get('var_src_len'):
+                output = update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source'])
+                output += update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
+            else:
+                unlimited_update_dicts(batch['x'], Dx, len(Dx))
+                output = update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
 
             if output:
                 Dx_dict[prev_step] = Dx.copy() # Save dictionaries for the batches preceding this one
@@ -113,15 +132,25 @@ def main():
                 rolling_vocab_dict[step] = (batch['x'][:,0].tolist(), batch['y'][:,0].tolist()) # When we get to this batch, we will need to use a new vocabulary
                 # tuple of first sentences of the batch # Uses large vocabulary indices
                 prev_step = step
-                dx = {}
+                if state['var_src_len']:
+                    print step, len(Dx)
+                else:
+                    print step
+                if state.get('variable_src_len'):
+                    dx = {}
+                    Cx = Dx.copy()
+                else:
+                    Dx = {}
                 dy = {}
-                Cx = Dx.copy()
                 Cy = Dy.copy()
                 output = False
-                print step
 
-                update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source']) # Assumes you cannot fill dx or dy with only 1 batch
-                update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
+                if state.get('var_src_len'):
+                    update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source']) # Assumes you cannot fill dx or dy with only 1 batch
+                    update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
+                else:
+                    unlimited_update_dicts(batch['x'], Dx, len(Dx))
+                    update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
             
             step += 1
 
