@@ -55,7 +55,7 @@ def main():
     train_data = get_batch_iterator(state, rng)
     train_data.start(-1)
 
-    if state.get('var_src_len'):
+    if not state.get('var_src_len'):
         dx = {}
         Dx = {}
         Cx = {}
@@ -65,7 +65,7 @@ def main():
     Dy = {}
     Cy = {}
 
-    if state.get('var_src_len'):
+    if not state.get('var_src_len'):
         for i in xrange(state['n_sym_source']):
             Dx[i] = i
             Cx[i] = i
@@ -119,7 +119,7 @@ def main():
             stop = True
 
         if batch:
-            if state.get('var_src_len'):
+            if not state.get('var_src_len'):
                 output = update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source'])
                 output += update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
             else:
@@ -132,20 +132,18 @@ def main():
                 rolling_vocab_dict[step] = (batch['x'][:,0].tolist(), batch['y'][:,0].tolist()) # When we get to this batch, we will need to use a new vocabulary
                 # tuple of first sentences of the batch # Uses large vocabulary indices
                 prev_step = step
-                if state['var_src_len']:
-                    print step, len(Dx)
-                else:
+                if not state.get('var_src_len'):
                     print step
-                if state.get('variable_src_len'):
                     dx = {}
                     Cx = Dx.copy()
                 else:
+                    print step, len(Dx)
                     Dx = {}
                 dy = {}
                 Cy = Dy.copy()
                 output = False
 
-                if state.get('var_src_len'):
+                if not state.get('var_src_len'):
                     update_dicts(batch['x'], dx, Dx, Cx, state['n_sym_source']) # Assumes you cannot fill dx or dy with only 1 batch
                     update_dicts(batch['y'], dy, Dy, Cy, state['n_sym_target'])
                 else:
