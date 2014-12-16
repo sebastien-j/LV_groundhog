@@ -46,6 +46,8 @@ def main():
 
     if 'var_src_len' not in state:
         state['var_src_len'] = False
+    if 'partial_Dxy' not in state:
+        state['partial_Dxy'] = False
     state['rolling_vocab'] = True
     state['use_infinite_loop'] = False
     logger.debug("rolling_vocab set to True, 'use_infinite_loop' set to False")
@@ -130,6 +132,17 @@ def main():
                 Dx_dict[prev_step] = Dx.copy() # Save dictionaries for the batches preceding this one
                 Dy_dict[prev_step] = Dy.copy()
                 rolling_vocab_dict[step] = (batch['x'][:,0].tolist(), batch['y'][:,0].tolist()) # When we get to this batch, we will need to use a new vocabulary
+                if state.get('partial_Dxy') and (step/100000 - prev_step/100000):
+                    print 'Updating Dx, Dy'
+                    Dx_file = shelve.open(state['Dx_file'])
+                    Dy_file = shelve.open(state['Dy_file'])
+                    for key in Dx_dict:
+                        Dx_file[str(key)] = Dx_dict[key]
+                        Dy_file[str(key)] = Dy_dict[key]
+                    Dx_file.close()
+                    Dy_file.close()
+                    Dx_dict = {}
+                    Dy_dict = {}
                 # tuple of first sentences of the batch # Uses large vocabulary indices
                 prev_step = step
                 if not state.get('var_src_len'):
