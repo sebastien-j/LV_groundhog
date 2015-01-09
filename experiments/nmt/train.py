@@ -130,6 +130,8 @@ def main():
         state['fixed_embeddings'] = False
     if 'save_iter' not in state:
         state['save_iter'] = -1
+    if 'var_src_len' not in state:
+        state['var_src_len'] = False
 
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, args.skip_init)

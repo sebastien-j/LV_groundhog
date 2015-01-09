@@ -244,6 +244,8 @@ def main():
         state['save_gs'] = 0
     if 'save_iter' not in state:
         state['save_iter'] = -1
+    if 'var_src_len' not in state:
+        state['var_src_len'] = False
 
     rng = numpy.random.RandomState(state['seed'])
     enc_dec = RNNEncoderDecoder(state, rng, skip_init=True)

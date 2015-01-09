@@ -465,6 +465,11 @@ class MainLoop(object):
             self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_d2)
             if self.state['save_gs']:
                 self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].set_value(temp_gs)
+        elif self.state['var_src_len']: # When embeddings are fixed, gnorm2 and dnorm2 must still have the right shape
+            self.algo.gnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(numpy.zeros((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32'))
+            self.algo.dnorm2[self.model.name2pos['W_0_enc_approx_embdr']].set_value(numpy.zeros((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32'))
+            if self.state['save_gs']:
+                self.algo.gs[self.model.name2pos['W_0_enc_approx_embdr']].set_value(numpy.zeros((self.state['n_sym_source'], self.state['rank_n_approx']), dtype='float32'))
 
         temp = self.model.params[self.model.name2pos['W_0_dec_approx_embdr']].get_value()
         if not self.state['fixed_embeddings']:

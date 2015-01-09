@@ -250,6 +250,8 @@ def main():
         state['save_gs'] = 0
     if 'save_iter' not in state:
         state['save_iter'] = -1
+    if 'var_src_len' not in state:
+        state['var_src_len'] = False
 
     with open(args.topn_file, 'rb') as f:
         topn = cPickle.load(f) # Load dictionary (source word index : list of target word indices)
