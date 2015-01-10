@@ -17,6 +17,8 @@ from experiments.nmt import\
 
 from experiments.nmt.numpy_compat import argpartition
 
+from collections import OrderedDict
+
 logger = logging.getLogger(__name__)
 
 class Timer(object):
@@ -183,6 +185,20 @@ def sample(lm_model, seq, n_samples, eos_id, unk_id,
     else:
         raise Exception("I don't know what to do")
 
+def update_dicts(indices, d, D, C, full):
+    for word in indices:
+        if word not in d:
+            if len(d) == full:
+                return True
+            if word not in D: # Also not in C
+                key, value = C.popitem()
+                del D[key]
+                d[word] = 0
+                D[word] = 0
+            else: # Also in C as (d UNION C) is D. (d INTERSECTION C) is the empty set.
+                d[word] = 0
+                del C[word]
+    return False
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -214,13 +230,20 @@ def parse_args():
          help="Binarized topn list for each source word (Vocabularies must correspond)")
     parser.add_argument("--num-common",
          type=int,
-         help="Number of always used common words (inc. <eos>, UNK)")
+         help="Number of always used common words (inc. <eos>, UNK) \
+         (With --less-transfer, total number of words)")
     parser.add_argument("--num-ttables",
          type=int,
          help="Number of target words taken from the T-tables for each input word")
+    parser.add_argument("--less-transfer",
+            action="store_true", default=False,
+            help="Keep the same vocabulary for many sentences. \
+            --num-common is now the total number of words used. \
+            No vocabulary expansion in case of failure to translate")
     parser.add_argument("--final",
             action="store_true", default=False,
-            help="Do not try to expand the vocabulary if a translation fails")
+            help="Do not try to expand the vocabulary if a translation fails \
+            .ignored with --less-transfer (no expansion)")
     parser.add_argument("--max-src-vocab", type=int,
             help="Maximum number of tokens in source vocab")
     parser.add_argument("--adjust-unk-bias", type=float,
@@ -255,9 +278,13 @@ def main():
 
     with open(args.topn_file, 'rb') as f:
         topn = cPickle.load(f) # Load dictionary (source word index : list of target word indices)
-    for elt in topn:
-        topn[elt] = set(topn[elt][:args.num_ttables]) # Take the first args.num_ttables only and convert list to set
- 
+    if args.less_transfer:
+        for elt in topn:
+            topn[elt] = topn[elt][:args.num_ttables] # Take the first args.num_ttables only
+    else:
+        for elt in topn:
+            topn[elt] = set(topn[elt][:args.num_ttables]) # Take the first args.num_ttables only and convert list to set
+
     num_models = len(args.models)
     rng = numpy.random.RandomState(state['seed'])
     enc_decs = []
@@ -313,7 +340,42 @@ def main():
     #original_b_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['b_dec_deep_softmax']].get_value()
 
     max_words = len(original_b_dec_deep_softmax[0])
- 
+    
+    if args.less_transfer:
+        # Use OrderedDict instead of set for reproducibility
+        d = OrderedDict() # Up to now
+        D = OrderedDict() # Full
+        C = OrderedDict() # Allowed to reject
+        prev_line = 0
+        D_dict = OrderedDict()
+        output = False
+
+        for i in xrange(args.num_common):
+            D[i] = 0
+            C[i] = 0
+        null_unk_indices = [state['null_sym_target'],state['unk_sym_target']]
+        update_dicts(null_unk_indices, d, D, C, args.num_common)
+        with open(args.source, 'r') as f:
+            for i, line in enumerate(f):
+                seqin = line.strip()
+                seq, parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src) # seq is the ndarray of indices
+                indices = []
+                for elt in seq[:-1]: # Exclude the EOL token
+                    if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                        indices.extend(topn[elt]) # Add topn best unigram translations for each source word
+                output = update_dicts(indices, d, D, C, args.num_common)
+                if output:
+                    D_dict[prev_line] = D.copy() # Save dictionary for the lines preceding this one
+                    prev_line = i
+                    logger.info("%d" % i)
+                    d = OrderedDict()
+                    C = D.copy()
+                    output = False
+                    null_unk_indices = [state['null_sym_target'], state['unk_sym_target']]
+                    update_dicts(null_unk_indices, d, D, C, args.num_common)
+                    update_dicts(indices, d, D, C, args.num_common) # Assumes you cannot fill d with only 1 line
+            D_dict[prev_line] = D.copy()
+
     if args.source and args.trans:
         # Actually only beam search is currently supported here
         assert beam_search
@@ -334,37 +396,49 @@ def main():
             # In the future, we may want to filter them to save on memory, but this isn't really much of an issue now
             if args.verbose:
                 print "Parsed Input:", parsed_in
-            # Extract the indices you need
-            indices = set()
-            for elt in seq[:-1]: # Exclude the EOL token
-                if elt != 1: # Exclude OOV (1 will not be a key of topn)
-                    indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
-            num_common_words = args.num_common
-            while True:
-                if num_common_words >= max_words:
+            if args.less_transfer:
+                if i in D_dict:
                     final = True
-                    num_common_words = max_words
-                else:
-                    final = False
+                    indices = D_dict[i].keys()
+                    eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
+                    unk_id = indices.index(state['unk_sym_target'])
+                    for j in xrange(num_models):
+                        lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
+                        lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
+                        lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
+                    lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
+            else:
+                # Extract the indices you need
+                indices = set()
+                for elt in seq[:-1]: # Exclude the EOL token
+                    if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                        indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
+                num_common_words = args.num_common
+                while True:
+                    if num_common_words >= max_words:
+                        final = True
+                        num_common_words = max_words
+                    else:
+                        final = False
 
-                if args.final: # No matter the number of words
-                    final = True
-                indices = indices.union(set(xrange(num_common_words))) # Add common words
-                indices = list(indices) # Convert back to list for advanced indexing
-                eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
-                unk_id = indices.index(state['unk_sym_target'])
-                # Set the target word matrices and biases
-                for j in xrange(num_models):
-                    lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
-                    lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
-                    lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
-                lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
+                    if args.final: # No matter the number of words
+                        final = True
+                    indices = indices.union(set(xrange(num_common_words))) # Add common words
+                    indices = list(indices) # Convert back to list for advanced indexing
+                    eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
+                    unk_id = indices.index(state['unk_sym_target'])
+                    # Set the target word matrices and biases
+                    for j in xrange(num_models):
+                        lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
+                        lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
+                        lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
+                    lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
 
                 try:
                     trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
                             beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
                             normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=final)
-                    break # Breaks only if it succeeded (If final=True, wil always succeed)
+                    break # Breaks only if it succeeded (If final=True, will always succeed)
                 except RuntimeError:
                     indices = set(indices)
                     num_common_words *= 2
