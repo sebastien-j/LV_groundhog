@@ -434,14 +434,14 @@ def main():
                         lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
                     lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
 
-                try:
-                    trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
-                            beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
-                            normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=final)
-                    break # Breaks only if it succeeded (If final=True, will always succeed)
-                except RuntimeError:
-                    indices = set(indices)
-                    num_common_words *= 2
+            try:
+                trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
+                        beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
+                        normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=final)
+                break # Breaks only if it succeeded (If final=True, will always succeed)
+            except RuntimeError:
+                indices = set(indices)
+                num_common_words *= 2
             best = numpy.argmin(costs)
             print >>ftrans, trans[best]
             if args.verbose:
