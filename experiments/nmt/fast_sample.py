@@ -240,6 +240,8 @@ def parse_args():
             help="Keep the same vocabulary for many sentences. \
             --num-common is now the total number of words used. \
             No vocabulary expansion in case of failure to translate")
+    parser.add_argument("--no-reset", action="store_true", default=False,
+            help="Do not reset the dicts when changing vocabularies")
     parser.add_argument("--final",
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
@@ -347,6 +349,7 @@ def main():
         D = OrderedDict() # Full
         C = OrderedDict() # Allowed to reject
         prev_line = 0
+        logger.info("%d" % i)
         D_dict = OrderedDict()
         output = False
 
@@ -368,9 +371,16 @@ def main():
                     D_dict[prev_line] = D.copy() # Save dictionary for the lines preceding this one
                     prev_line = i
                     logger.info("%d" % i)
-                    d = OrderedDict()
-                    C = D.copy()
                     output = False
+                    d = OrderedDict()
+                    if args.no_reset:
+                        C = D.copy()
+                    else:
+                        D = OrderedDict() # Full
+                        C = OrderedDict() # Allowed to reject
+                        for i in xrange(args.num_common):
+                            D[i] = 0
+                            C[i] = 0
                     null_unk_indices = [state['null_sym_target'], state['unk_sym_target']]
                     update_dicts(null_unk_indices, d, D, C, args.num_common)
                     update_dicts(indices, d, D, C, args.num_common) # Assumes you cannot fill d with only 1 line
