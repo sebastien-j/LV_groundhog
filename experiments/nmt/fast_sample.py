@@ -370,7 +370,7 @@ def main():
                     if elt != 1: # Exclude OOV (1 will not be a key of topn)
                         indices.extend(topn[elt]) # Add topn best unigram translations for each source word
                 output = update_dicts(indices, d, D, C, args.num_common)
-                if (i % args.change_every) == 0 and args.change_every > 0:
+                if (i % args.change_every) == 0 and args.change_every > 0 and i > 0:
                     output = True
                 if output:
                     D_dict[prev_line] = D.copy() # Save dictionary for the lines preceding this one
