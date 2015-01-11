@@ -242,6 +242,9 @@ def parse_args():
             No vocabulary expansion in case of failure to translate")
     parser.add_argument("--no-reset", action="store_true", default=False,
             help="Do not reset the dicts when changing vocabularies")
+    parser.add_argument("--change-every", type=int, default=100,
+            help="Change the dicts at each multiple of this number. \
+            Use -1 to change only if full")
     parser.add_argument("--final",
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
@@ -367,6 +370,8 @@ def main():
                     if elt != 1: # Exclude OOV (1 will not be a key of topn)
                         indices.extend(topn[elt]) # Add topn best unigram translations for each source word
                 output = update_dicts(indices, d, D, C, args.num_common)
+                if (i % args.change_every) == 0 and args.change_every > 0:
+                    output = True
                 if output:
                     D_dict[prev_line] = D.copy() # Save dictionary for the lines preceding this one
                     prev_line = i
