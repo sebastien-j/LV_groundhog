@@ -249,8 +249,6 @@ def parse_args():
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
             .ignored with --less-transfer (no expansion)")
-    parser.add_argument("--adjust-unk-bias", type=float,
-            help="Increase or decrease the bias of the UNK token")
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
     parser.add_argument("--changes",
@@ -318,12 +316,6 @@ def main():
     
     original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
-
-    if args.adjust_unk_bias:
-        for i in xrange(num_models):
-            tmp = lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].get_value()
-            tmp[state['unk_sym_target']] += args.adjust_unk_bias
-            lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].set_value(tmp)
     
     original_W_0_dec_approx_embdr = [lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value() for i in xrange(num_models)]
     original_W2_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value() for i in xrange(num_models)]
