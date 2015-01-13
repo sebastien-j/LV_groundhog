@@ -249,8 +249,6 @@ def parse_args():
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
             .ignored with --less-transfer (no expansion)")
-    parser.add_argument("--max-src-vocab", type=int,
-            help="Maximum number of tokens in source vocab")
     parser.add_argument("--adjust-unk-bias", type=float,
             help="Increase or decrease the bias of the UNK token")
     parser.add_argument("--models", nargs = '+', required=True,
@@ -306,10 +304,6 @@ def main():
     #lm_model_0.load(args.model_0)
 
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
-    if args.max_src_vocab:
-        for elt in indx_word.keys():
-            if indx_word[elt] >= args.max_src_vocab:
-                del indx_word[elt]
 
     sampler = None
     beam_search = None
@@ -321,12 +315,6 @@ def main():
         #sampler = enc_dec.create_sampler(many_samples=True)
 
     idict_src = cPickle.load(open(state['indx_word'],'r')) #Source i2w
-    if args.max_src_vocab:
-        for elt in idict_src.keys():
-            if elt >= args.max_src_vocab:
-                del idict_src[elt]
-        for i in xrange(num_models):
-            lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].set_value(lm_models[i].params[lm_models[i].name2pos['W_0_enc_approx_embdr']].get_value()[:args.max_src_vocab])
     
     original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
