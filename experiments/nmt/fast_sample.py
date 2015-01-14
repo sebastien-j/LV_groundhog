@@ -202,7 +202,7 @@ def update_dicts(indices, d, D, C, full):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-            "Sample (of find with beam-serch) translations from a translation model")
+            "Sample (of find with beam-search) translations from a translation model")
     parser.add_argument("--state",
             required=True, help="State to use")
     parser.add_argument("--beam-search",
@@ -290,16 +290,24 @@ def main():
     rng = numpy.random.RandomState(state['seed'])
     enc_decs = []
     lm_models = []
+    original_W_0_dec_approx_embdr = []
+    original_W2_dec_deep_softmax = []
+    original_b_dec_deep_softmax = []
     for i in xrange(num_models):
         enc_decs.append(RNNEncoderDecoder(state, rng, skip_init=True))
         enc_decs[i].build()
         lm_models.append(enc_decs[i].create_lm_model())
         lm_models[i].load(args.models[i])
 
-    #enc_dec_0 = RNNEncoderDecoder(state, rng, skip_init=True)
-    #enc_dec_0.build()
-    #lm_model_0 = enc_dec_0.create_lm_model()
-    #lm_model_0.load(args.model_0)
+        original_W_0_dec_approx_embdr.append(lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value())
+        original_W2_dec_deep_softmax.append(lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value())
+        original_b_dec_deep_softmax.append(lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].get_value())
+
+        # On GPU, this will free memory for the next models
+        # Additional gains could be made by rolling the source vocab
+        lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].set_value(numpy.zeros((1,1), dtype=numpy.float32))
+        lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].set_value(numpy.zeros((1,1), dtype=numpy.float32))
+        lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].set_value(numpy.zeros((1), dtype=numpy.float32))
 
     indx_word = cPickle.load(open(state['word_indx'],'rb')) #Source w2i
 
@@ -316,13 +324,6 @@ def main():
     
     original_target_i2w = lm_models[0].word_indxs.copy()
     # I don't think that we need target_word2index
-    
-    original_W_0_dec_approx_embdr = [lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value() for i in xrange(num_models)]
-    original_W2_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value() for i in xrange(num_models)]
-    original_b_dec_deep_softmax = [lm_models[i].params[lm_models[i].name2pos['b_dec_deep_softmax']].get_value() for i in xrange(num_models)]
-    #original_W_0_dec_approx_embdr_0 = lm_model_0.params[lm_model_0.name2pos['W_0_dec_approx_embdr']].get_value()
-    #original_W2_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['W2_dec_deep_softmax']].get_value()
-    #original_b_dec_deep_softmax_0 = lm_model_0.params[lm_model_0.name2pos['b_dec_deep_softmax']].get_value()
 
     max_words = len(original_b_dec_deep_softmax[0])
     
