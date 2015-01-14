@@ -249,7 +249,7 @@ def parse_args():
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
             .ignored with --less-transfer (no expansion)")
-    parser.add_argument("--n-best", action=store_true, default=False,
+    parser.add_argument("--n-best", action="store_true", default=False,
             help="Write n-best list (of size --beam-size)")    
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
