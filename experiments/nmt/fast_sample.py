@@ -249,6 +249,8 @@ def parse_args():
             action="store_true", default=False,
             help="Do not try to expand the vocabulary if a translation fails \
             .ignored with --less-transfer (no expansion)")
+    parser.add_argument("--n-best", action=store_true, default=False,
+            help="Write n-best list (of size --beam-size)")    
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
     parser.add_argument("--changes",
@@ -440,8 +442,14 @@ def main():
                     except RuntimeError:
                         indices = set(indices)
                         num_common_words *= 2
-            best = numpy.argmin(costs)
-            print >>ftrans, trans[best]
+            if not args.n_best:
+                best = numpy.argmin(costs)
+                print >>ftrans, trans[best]
+            else:
+                order = numpy.argsort(costs)
+                best = order[0]
+                for elt in order:
+                    print >>ftrans, str(i) + ' ||| ' + trans[elt] + ' ||| ' + str(costs[elt])
             if args.verbose:
                 print "Translation:", trans[best]
             total_cost += costs[best]
