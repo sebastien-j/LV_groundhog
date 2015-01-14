@@ -332,7 +332,7 @@ def main():
         D = OrderedDict() # Full
         C = OrderedDict() # Allowed to reject
         prev_line = 0
-        logger.info("%d" % i)
+        logger.info("%d" % prev_line)
         D_dict = OrderedDict()
         output = False
 
