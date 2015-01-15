@@ -248,6 +248,7 @@ def main():
                             i = prev_i + 1
 
                         if i == (prev_i + 1):
+                            prev_i = i + 1
                             if (i % 100 == 0) and i > 0:
                                 new_trans_file.flush()
                                 logger.debug("Current speed is {} per sentence".
