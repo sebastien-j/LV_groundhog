@@ -226,13 +226,20 @@ def main():
                         new_word2idx_trg = word2idx_trg
 
                     prev_i = -1
+                    if args.n_best:
+                        full_trans_line = trans_file.readline()
+                        if full_trans_line == '':
+                            raise IOError("File is empty")
+                        full_trans_line = full_trans_line.split('|||')
+                        n_best_start = int(full_trans_line[0].strip())
+                        trans_file.seek(0)
                     while True:
                         if args.n_best:
                             full_trans_line = trans_file.readline()
                             if full_trans_line == '':
                                 break
                             full_trans_line = full_trans_line.split('|||')
-                            i = int(full_trans_line[0].strip())
+                            i = int(full_trans_line[0].strip()) - n_best_start
                             trans_line = full_trans_line[1].strip()
                         else:
                             trans_line = trans_file.readline()
@@ -240,7 +247,7 @@ def main():
                                 break
                             i = prev_i + 1
 
-                        if i == (prev_i + 1)
+                        if i == (prev_i + 1):
                             if (i % 100 == 0) and i > 0:
                                 new_trans_file.flush()
                                 logger.debug("Current speed is {} per sentence".
