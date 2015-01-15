@@ -248,7 +248,7 @@ def main():
                             i = prev_i + 1
 
                         if i == (prev_i + 1):
-                            prev_i = i + 1
+                            prev_i = i
                             if (i % 100 == 0) and i > 0:
                                 new_trans_file.flush()
                                 logger.debug("Current speed is {} per sentence".
@@ -271,7 +271,7 @@ def main():
                         elif i == prev_i:
                             pass # Keep the same source sentence
                         else:
-                            raise ValueError()
+                            raise ValueError("prev_i: %d, i: %d" % (prev_i, i))
 
                         trans_seq, trans_words = parse_output(state, new_word2idx_trg, trans_line.strip(), eos_id=eos_id, unk_id=unk_id)
                         trans_words.append('<eos>')
