@@ -85,6 +85,9 @@ def parse_args():
             Use -1 to change only if full")
     parser.add_argument("--no-reset", action="store_true", default=False,
             help="Do not reset the dicts when changing vocabularies")
+    parser.add_argument("--n-best", action="store_true", default=False,
+            help="Trans file is a n-best list, where lines look like \
+                  `20 ||| A sentence . ||| 0.353`")
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
     parser.add_argument("changes",
@@ -221,25 +224,46 @@ def main():
                         eos_id = state['null_sym_target']
                         unk_id = state['unk_sym_target']
                         new_word2idx_trg = word2idx_trg
-                    i = 0
-                    while True:
-                        src_line = src_file.readline()
-                        trans_line = trans_file.readline()
-                        if src_line == '' or trans_line == '':
-                            break
-                        src_seq, src_words = parse_input(state, word2idx_src, src_line.strip())
-                        src_words.append('<eos>')
 
-                        if args.num_common and args.num_ttables and args.topn_file:
-                            if i in D_dict:
-                                indices = D_dict[i].keys()
-                                eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
-                                unk_id = indices.index(state['unk_sym_target'])
-                                for j in xrange(num_models):
-                                    lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
-                                    lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
-                                    lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
-                                new_word2idx_trg = dict([(idict_trg[index], k) for k, index in enumerate(indices)]) # does i2w work ok for UNK?
+                    prev_i = -1
+                    while True:
+                        if args.n_best:
+                            full_trans_line = trans_file.readline()
+                            if full_trans_line == '':
+                                break
+                            full_trans_line = full_trans_line.split('|||')
+                            i = int(full_trans_line[0].strip())
+                            trans_line = full_trans_line[1].strip()
+                        else:
+                            trans_line = trans_file.readline()
+                            if trans_line == '':
+                                break
+                            i = prev_i + 1
+
+                        if i == (prev_i + 1)
+                            if (i % 100 == 0) and i > 0:
+                                new_trans_file.flush()
+                                logger.debug("Current speed is {} per sentence".
+                                        format((time.time() - start_time) / i))
+
+                            src_line = src_file.readline()
+                            src_seq, src_words = parse_input(state, word2idx_src, src_line.strip())
+                            src_words.append('<eos>')
+
+                            if args.num_common and args.num_ttables and args.topn_file:
+                                if i in D_dict:
+                                    indices = D_dict[i].keys()
+                                    eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
+                                    unk_id = indices.index(state['unk_sym_target'])
+                                    for j in xrange(num_models):
+                                        lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
+                                        lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
+                                        lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
+                                    new_word2idx_trg = dict([(idict_trg[index], k) for k, index in enumerate(indices)]) # does i2w work ok for UNK?
+                        elif i == prev_i:
+                            pass # Keep the same source sentence
+                        else:
+                            raise ValueError()
 
                         trans_seq, trans_words = parse_output(state, new_word2idx_trg, trans_line.strip(), eos_id=eos_id, unk_id=unk_id)
                         trans_words.append('<eos>')
@@ -277,14 +301,10 @@ def main():
                             to_write = to_write + word
                             if j < len(new_trans_words) - 1:
                                 to_write += ' '
-                        #to_write += '\n'
-                        #new_trans_file.write(to_write)
-                        print >>new_trans_file, to_write
-                        i += 1
-                        if i % 100 == 0:
-                            new_trans_file.flush()
-                            logger.debug("Current speed is {} per sentence".
-                                    format((time.time() - start_time) / (i + 1)))
+                        if args.n_best:
+                            print >>new_trans_file, full_trans_line[0].strip() + ' ||| ' + to_write + ' ||| ' + full_trans_line[2].strip()
+                        else:
+                            print >>new_trans_file, to_write
     else:
         raise NotImplementedError
 
