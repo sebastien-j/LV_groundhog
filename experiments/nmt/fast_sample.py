@@ -256,7 +256,8 @@ def parse_args():
     parser.add_argument("--start", type=int, default=0,
             help="For n-best, first sentence id")
     parser.add_argument("--wp", type=float, default=0.,
-            help="Word penalty. >0: shorter translations")
+            help="Word penalty. >0: shorter translations \
+                  <0: longer ones")
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
     parser.add_argument("--changes",
