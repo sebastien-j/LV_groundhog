@@ -165,14 +165,16 @@ def sample(lm_model, seq, n_samples, eos_id, unk_id,
         sampler=None, beam_search=None,
         ignore_unk=False, normalize=False,
         normalize_p = 1.0,
-        alpha=1, verbose=False, final=False):
+        alpha=1, verbose=False, final=False, wp=0.):
     if beam_search:
         sentences = []
         trans, costs = beam_search.search(seq, n_samples, eos_id=eos_id, unk_id=unk_id,
                 ignore_unk=ignore_unk, minlen=len(seq) / 2, final=final)
+        counts = [len(s) for s in trans]
         if normalize:
-            counts = [len(s) for s in trans]
-            costs = [co / ((max(cn,1))**normalize_p) for co, cn in zip(costs, counts)]
+            costs = [co / ((max(cn,1))**normalize_p) + wp * cn for co, cn in zip(costs, counts)]
+        else:
+            costs = [co + wp * cn for co, cn in zip(costs, counts)]            
         for i in range(len(trans)):
             sen = indices_to_words(lm_model.word_indxs, trans[i]) # Make sure that indices_to_words has been changed
             sentences.append(" ".join(sen))
@@ -253,6 +255,8 @@ def parse_args():
             help="Write n-best list (of size --beam-size)")
     parser.add_argument("--start", type=int, default=0,
             help="For n-best, first sentence id")
+    parser.add_argument("--wp", type=float, default=0.,
+            help="Word penalty. >0: shorter translations")
     parser.add_argument("--models", nargs = '+', required=True,
             help="path to the models")
     parser.add_argument("--changes",
@@ -408,7 +412,7 @@ def main():
                     lm_models[0].word_indxs = dict([(k, original_target_i2w[index]) for k, index in enumerate(indices)]) # target index2word
                 trans, costs, _ = sample(lm_models[0], seq, n_samples, sampler=sampler,
                         beam_search=beam_search, ignore_unk=args.ignore_unk, normalize=args.normalize,
-                        normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=True)
+                        normalize_p=args.normalize_p, eos_id=eos_id, unk_id=unk_id, final=True, wp=args.wp)
             else:
                 # Extract the indices you need
                 indices = set()
