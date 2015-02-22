@@ -133,7 +133,10 @@ class MainLoop(object):
             self.state[pname] = 1e20
 
         n_elems = state['loopIters'] // state['trainFreq'] + 1
-        self.timings = {'step' : 0, 'super_step' : 0, 'next_offset' : -1}
+        if self.state['rolling_vocab']:
+            self.timings = {'step' : 0, 'super_step' : 0, 'next_offset' : -1}
+        else:
+            self.timings = {'step' : 0, 'next_offset' : -1}
         for name in self.algo.return_names:
             self.timings[name] = numpy.zeros((n_elems,), dtype='float32')
         if self.l2_params:
@@ -563,8 +566,9 @@ class MainLoop(object):
                 if 'next_offset' in self.timings
                 else -1)
 
-        for i in xrange(self.timings['step'] - self.timings['super_step']):
-            self.train_data.next()
+        if self.state['rolling_vocab']:
+            for i in xrange(self.timings['step'] - self.timings['super_step']):
+                self.train_data.next()
 
         if self.state['rolling_vocab']:
             # Make sure dictionary is current.
