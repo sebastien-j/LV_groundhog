@@ -258,6 +258,31 @@ def prototype_search_state():
     state['prefix'] = 'search_'
     return state
 
+def prototype_lv_state():
+
+    state = prototype_search_state()
+
+    state['null_sym_source'] = 0
+    state['null_sym_target'] = 0
+    state['large_vocab_source'] = 500000
+    state['large_vocab_target'] = 500000
+    state['rolling_vocab_dict'] = "rolling_vocab_dict.pkl",
+    state['Dx_file'] = "Dx_file",
+    state['Dy_file'] = "Dy_file",
+    state['save_algo'] = 1
+    state['save_gs'] = 0
+    state['saveFreq'] = 720
+    state['overwrite'] = 0
+    state['loopIters'] = 5000000
+    state['timeStop'] = 24*60*60
+    state['use_infinite_loop'] = True
+    state['rolling_vocab'] = 1
+    state['var_src_len'] = False
+    state['fixed_embeddings'] = False
+    state['save_iter'] = -1
+    state['partial_Dxy'] = True
+    state['prefix'] = 'search_lv_'
+
 def prototype_phrase_lstm_state():
     state = prototype_phrase_state()
     state['enc_rec_layer'] = 'LSTMLayer'
