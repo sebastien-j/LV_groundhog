@@ -243,7 +243,7 @@ sub tokenize
     }
 
     # seperate out all "other" special characters
-    $text =~ s/([^\p{IsAlnum}\s\.\'\`\’\,\-])/ $1 /g;
+    $text =~ s/([^\p{IsAlnum}\s\.\'\`\x{2019}\,\-])/ $1 /g;
 
     # aggressive hyphen splitting
     if ($AGGRESSIVE) 
@@ -276,7 +276,7 @@ sub tokenize
 	      
     # turn `into '
     $text =~ s/\`/\'/g;
-    $text =~ s/\’/\'/g;
+    $text =~ s/\x{2019}/\'/g;
 	
     #turn '' into "
     $text =~ s/\'\'/ \" /g;
