@@ -266,9 +266,9 @@ def prototype_lv_state():
     state['null_sym_target'] = 0
     state['large_vocab_source'] = 500000
     state['large_vocab_target'] = 500000
-    state['rolling_vocab_dict'] = "rolling_vocab_dict.pkl",
-    state['Dx_file'] = "Dx_file",
-    state['Dy_file'] = "Dy_file",
+    state['rolling_vocab_dict'] = "rolling_vocab_dict.pkl"
+    state['Dx_file'] = "Dx_file"
+    state['Dy_file'] = "Dy_file"
     state['save_algo'] = 1
     state['save_gs'] = 0
     state['saveFreq'] = 720
