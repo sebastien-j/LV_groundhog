@@ -264,6 +264,8 @@ def prototype_lv_state():
 
     state['null_sym_source'] = 0
     state['null_sym_target'] = 0
+    state['n_sym_source'] = 30000
+    state['n_sym_target'] = 30000
     state['large_vocab_source'] = 500000
     state['large_vocab_target'] = 500000
     state['rolling_vocab_dict'] = "rolling_vocab_dict.pkl"
@@ -282,6 +284,7 @@ def prototype_lv_state():
     state['save_iter'] = -1
     state['partial_Dxy'] = True
     state['prefix'] = 'search_lv_'
+    return state
 
 def prototype_phrase_lstm_state():
     state = prototype_phrase_state()
