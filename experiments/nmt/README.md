@@ -217,10 +217,10 @@ may want to try both.
 
 ####Vocabulary filtering (optional)
 
-As large vocabulary NMT models take up much memory, which may be 
-sometimes be an issue, especially if you want to cram many models on a 
-GPU for fast decoding, you may filter the model according to the source 
-side of the dev/test set. 
+As large vocabulary NMT models take up much memory, which may sometimes 
+be an issue, especially if you want to cram many models on a GPU for 
+fast decoding, you may filter the model according to the source side of 
+the dev/test set.
 
 For a given value of `K` and `Kp` (see the paper), run the following 
 command once (not for each model). You may tune these values on the 
