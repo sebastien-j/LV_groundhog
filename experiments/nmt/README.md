@@ -223,9 +223,9 @@ fast decoding, you may filter the model according to the source side of
 the dev/test set.
 
 For a given value of `K` and `Kp` (see the paper), run the following 
-command once (not for each model). You may tune these values on the 
+command once (not for each model). You may tune `K` and `Kp`  on the 
 development set. If you are time-constrained, good default values are 
-`K=state['n_sym_target']` and `Kp=10`.
+`K=state['n_sym_target']/1000` and `Kp=10`.
 
 ```
 THEANO_FLAGS='device=cpu' python utils/filter_vocab.py --state ${state}.final.pkl \
