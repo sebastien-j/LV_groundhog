@@ -255,7 +255,7 @@ not (if not, just remove ".${ext}" where appropriate).
 THEANO_FLAGS='device=gpu, on_unused_input=warn' fast_sample.py \
     --beam-search --beam-size ${beam} --normalize --less-transfer \
     --num-common ${K}000 --num-ttables ${Kp} --topn-file ${topn}.${ext}.pkl \
-    --state ${state}.final.${ext}.npz --models ${model}.final.${ext}.npz \
+    --state ${state}.final.${ext}.pkl --models ${model}.final.${ext}.npz \
     --source ${src} --trans ${trans}
 ```
 
@@ -280,7 +280,7 @@ If you want to replace unknown words, run
 ```
 THEANO_FLAGS='device=gpu, on_unused_input=warn' replace_UNK.py --heuristic ${heuristic} \
     --num-common ${K}000 --num-ttables ${Kp} --topn-file ${topn}.${ext}.pkl \
-    --state ${state}.final.${ext}.npz --models ${model}.final.${ext}.npz \
+    --state ${state}.final.${ext}.pkl --models ${model}.final.${ext}.npz \
     --mapping ${mapping}.pkl --source ${src} --trans ${trans} --new-trans ${new_trans}
 ```
 
