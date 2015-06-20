@@ -7,6 +7,7 @@ import logging
 import time
 import sys
 import numpy
+import theano
 
 from collections import OrderedDict
 
@@ -20,7 +21,7 @@ from experiments.nmt.numpy_compat import argpartition
 
 logger = logging.getLogger(__name__)
 
-def parse_output(state, word2idx, line, eos_id, unk_id, raise_unk=False):
+def parse_output(word2idx, line, eos_id, unk_id, raise_unk=False):
     seqin = line.split()
     seqlen = len(seqin)
     seq = numpy.zeros(seqlen+1, dtype='int64')
@@ -36,11 +37,26 @@ def parse_output(state, word2idx, line, eos_id, unk_id, raise_unk=False):
 
     return seq, seqin
 
+# From score.py
+def pack(seqs, return_lengths=False):
+    num = len(seqs)
+    lengths = map(len, seqs)
+    max_len = max(lengths)
+    x = numpy.zeros((num, max_len), dtype="int64")
+    x_mask = numpy.zeros((num, max_len), dtype="float32")
+    for i, seq in enumerate(seqs):
+        x[i, :len(seq)] = seq
+        x_mask[i, :len(seq)] = 1.0
+    if not return_lengths:
+        return x.T, x_mask.T
+    else:
+        return x.T, x_mask.T, numpy.asarray(lengths)
+
 def update_dicts(indices, d, D, C, full):
     for word in indices:
         if word not in d:
             if len(d) == full:
-                return True
+                raise RuntimeError("The dictionary is full")
             if word not in D: # Also not in C
                 key, value = C.popitem()
                 del D[key]
@@ -49,7 +65,73 @@ def update_dicts(indices, d, D, C, full):
             else: # Also in C as (d UNION C) is D. (d INTERSECTION C) is the empty set.
                 d[word] = 0
                 del C[word]
-    return False
+
+def compute_alignment(src_seqs, trg_seqs, alignment_fns, batchsize):
+    full_x, full_x_mask, full_x_lengths = pack(src_seqs, return_lengths=True)
+    full_y, full_y_mask = pack(trg_seqs)
+    assert full_x.shape[1] == full_y.shape[1]
+
+    num_models = len(alignment_fns)
+
+    full_alignments = numpy.zeros((full_y.shape[0], full_x.shape[0], 0), dtype=numpy.float32)
+
+    for batch_start in xrange(0, full_x.shape[1], batchsize):
+        alignments = 0.
+        x = full_x[:,batch_start:batch_start+batchsize]
+        x_mask = full_x_mask[:,batch_start:batch_start+batchsize]
+        x_lengths = full_x_lengths[batch_start:batch_start+batchsize]
+        y = full_y[:,batch_start:batch_start+batchsize]
+        y_mask = full_y_mask[:,batch_start:batch_start+batchsize]
+        for j in xrange(num_models):
+            # target_len x source_len x num_examples
+            alignments += numpy.asarray(alignment_fns[j](x, y, x_mask, y_mask)[0])
+        alignments[:,x_lengths-1,range(x.shape[1])] = 0. # Put source <eos> score to 0.
+        full_alignments = numpy.concatenate((full_alignments, alignments), axis=2)
+        hard_alignments = numpy.argmax(full_alignments, axis=1) # trg_len x num_examples
+
+    return hard_alignments
+
+def replace_unknown_words(src_word_seqs, trg_seqs, trg_word_seqs, hard_alignments,
+                          heuristic, mapping, unk_id, new_trans_file, n_best, full_trans_lines=None):
+    for i, src_words in enumerate(src_word_seqs):
+        trans_words = trg_word_seqs[i]
+        trans_seq = trg_seqs[i]
+        hard_alignment = hard_alignments[:,i]
+        if n_best:
+            full_trans_line = full_trans_lines[i]
+
+        new_trans_words = []
+        for j in xrange(len(trans_words) - 1): # -1 : Don't write <eos>
+            if trans_seq[j] == unk_id:
+                UNK_src = src_words[hard_alignment[j]]
+                if heuristic == 0: # Copy (ok when training with large vocabularies on en->fr, en->de)
+                    new_trans_words.append(UNK_src)
+                elif heuristic == 1:
+                    # Use the most likely translation (with t-table). If not found, copy the source word.
+                    # Ok for small vocabulary (~30k) models
+                    if UNK_src in mapping:
+                        new_trans_words.append(mapping[UNK_src])
+                    else:
+                        new_trans_words.append(UNK_src)
+                elif heuristic == 2:
+                    # Use t-table if the source word starts with a lowercase letter. Otherwise copy
+                    # Sometimes works better than other heuristics
+                    if UNK_src in mapping and UNK_src.decode('utf-8')[0].islower():
+                        new_trans_words.append(mapping[UNK_src])
+                    else:
+                        new_trans_words.append(UNK_src)
+            else:
+                new_trans_words.append(trans_words[j])
+
+        to_write = ''
+        for j, word in enumerate(new_trans_words):
+            to_write = to_write + word
+            if j < len(new_trans_words) - 1:
+                to_write += ' '
+        if n_best:
+            print >>new_trans_file, full_trans_line[0].strip() + ' ||| ' + to_write + ' ||| ' + full_trans_line[2].strip()
+        else:
+            print >>new_trans_file, to_write
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -85,6 +167,8 @@ def parse_args():
             Use -1 to change only if full")
     parser.add_argument("--no-reset", action="store_true", default=False,
             help="Do not reset the dicts when changing vocabularies")
+    parser.add_argument("--batchsize", type=int, default=32,
+            help="(Maximum) batchsize")
     parser.add_argument("--n-best", action="store_true", default=False,
             help="Trans file is a n-best list, where lines look like \
                   `20 ||| A sentence . ||| 0.353`")
@@ -126,7 +210,7 @@ def main():
     rng = numpy.random.RandomState(state['seed'])
     enc_decs = []
     lm_models = []
-    compute_probs = []
+    alignment_fns = []
     if args.num_common and args.num_ttables and args.topn_file:
         original_W_0_dec_approx_embdr = []
         original_W2_dec_deep_softmax = []
@@ -137,8 +221,9 @@ def main():
         enc_decs[i].build()
         lm_models.append(enc_decs[i].create_lm_model())
         lm_models[i].load(args.models[i])
-        compute_probs.append(enc_decs[i].create_probs_computer(return_alignment=True))
-        
+
+        alignment_fns.append(theano.function(inputs=enc_decs[i].inputs, outputs=[enc_decs[i].alignment], name="alignment_fn"))
+
         if args.num_common and args.num_ttables and args.topn_file:
             original_W_0_dec_approx_embdr.append(lm_models[i].params[lm_models[i].name2pos['W_0_dec_approx_embdr']].get_value())
             original_W2_dec_deep_softmax.append(lm_models[i].params[lm_models[i].name2pos['W2_dec_deep_softmax']].get_value())
@@ -154,6 +239,7 @@ def main():
         heuristic = args.heuristic
     else:
         heuristic = 0
+        mapping = None
 
 
     word2idx_src = cPickle.load(open(state['word_indx'], 'rb'))
@@ -162,11 +248,10 @@ def main():
     word2idx_trg = cPickle.load(open(state['word_indx_trgt'], 'rb'))
     idict_trg = cPickle.load(open(state['indx_word_target'], 'r'))
 
-    word2idx_trg['<eos>'] = state['null_sym_target']   
+    word2idx_trg['<eos>'] = state['null_sym_target']
     word2idx_trg[state['oov']] = state['unk_sym_target'] # 'UNK' may be in the vocabulary. Now points to the right index.
     idict_trg[state['null_sym_target']] = '<eos>'
-    idict_trg[state['unk_sym_target']] = state['oov']    
-
+    idict_trg[state['unk_sym_target']] = state['oov']
 
     if args.num_common and args.num_ttables and args.topn_file:
 
@@ -192,10 +277,8 @@ def main():
                 for elt in seq[:-1]: # Exclude the EOL token
                     if elt != 1: # Exclude OOV (1 will not be a key of topn)
                         indices.extend(topn[elt]) # Add topn best unigram translations for each source word
-                output = update_dicts(indices, d, D, C, args.num_common)
+                update_dicts(indices, d, D, C, args.num_common)
                 if (i % args.change_every) == 0 and args.change_every > 0 and i > 0:
-                    output = True
-                if output:
                     D_dict[prev_line] = D.copy() # Save dictionary for the lines preceding this one
                     prev_line = i
                     logger.info("%d" % i)
@@ -249,6 +332,14 @@ def main():
 
                         if i == (prev_i + 1):
                             prev_i = i
+
+                            if (i % args.change_every) == 0 and i > 0:
+                                hard_alignments = compute_alignment(src_seqs, trg_seqs, alignment_fns, args.batchsize)
+                                replace_unknown_words(
+                                    src_word_seqs, trg_seqs, trg_word_seqs,
+                                    hard_alignments, heuristic, mapping, unk_id,
+                                    new_trans_file, args.n_best, full_trans_lines)
+
                             if (i % 100 == 0) and i > 0:
                                 new_trans_file.flush()
                                 logger.debug("Current speed is {} per sentence".
@@ -258,8 +349,13 @@ def main():
                             src_seq, src_words = parse_input(state, word2idx_src, src_line.strip())
                             src_words.append('<eos>')
 
-                            if args.num_common and args.num_ttables and args.topn_file:
-                                if i in D_dict:
+                            if (i % args.change_every) == 0:
+                                src_seqs = []
+                                src_word_seqs = []
+                                trg_seqs = []
+                                trg_word_seqs = []
+                                full_trans_lines = [] # Only used with n-best lists
+                                if args.num_common and args.num_ttables and args.topn_file:
                                     indices = D_dict[i].keys()
                                     eos_id = indices.index(state['null_sym_target']) # Find new eos and unk positions
                                     unk_id = indices.index(state['unk_sym_target'])
@@ -267,52 +363,25 @@ def main():
                                         lm_models[j].params[lm_models[j].name2pos['W_0_dec_approx_embdr']].set_value(original_W_0_dec_approx_embdr[j][indices])
                                         lm_models[j].params[lm_models[j].name2pos['W2_dec_deep_softmax']].set_value(original_W2_dec_deep_softmax[j][:, indices])
                                         lm_models[j].params[lm_models[j].name2pos['b_dec_deep_softmax']].set_value(original_b_dec_deep_softmax[j][indices])
-                                    new_word2idx_trg = dict([(idict_trg[index], k) for k, index in enumerate(indices)]) # does i2w work ok for UNK?
-                        elif i == prev_i:
-                            pass # Keep the same source sentence
-                        else:
+                                    new_word2idx_trg = dict([(idict_trg[index], k) for k, index in enumerate(indices)])
+                        elif i != prev_i:
                             raise ValueError("prev_i: %d, i: %d" % (prev_i, i))
 
-                        trans_seq, trans_words = parse_output(state, new_word2idx_trg, trans_line.strip(), eos_id=eos_id, unk_id=unk_id)
+                        trans_seq, trans_words = parse_output(new_word2idx_trg, trans_line.strip(), eos_id=eos_id, unk_id=unk_id)
                         trans_words.append('<eos>')
-                        alignment = 0
-                        for j in xrange(num_models):
-                            cur_probs, cur_alignment = compute_probs[j](src_seq, trans_seq)
-                            alignment += cur_alignment
-                        alignment = alignment[:,:-1,0] # Remove source <eos>
-                        hard_alignment = numpy.argmax(alignment, 1)
-                        new_trans_words = []
-                        for j in xrange(len(trans_words) - 1): # -1 : Don't write <eos>
-                            if trans_seq[j] == unk_id:
-                                UNK_src = src_words[hard_alignment[j]]
-                                if heuristic == 0: # Copy (ok when training with large vocabularies on en->fr, en->de)
-                                    new_trans_words.append(UNK_src)
-                                elif heuristic == 1: 
-                                    # Use the most likely translation (with t-table). If not found, copy the source word.
-                                    # Ok for small vocabulary (~30k) models
-                                    if UNK_src in mapping:
-                                        new_trans_words.append(mapping[UNK_src])
-                                    else:
-                                        new_trans_words.append(UNK_src)
-                                elif heuristic == 2:
-                                    # Use t-table if the source word starts with a lowercase letter. Otherwise copy
-                                    # Seems to work a tiny bit better than heuristic 0 on large vocabulary models
-                                    # Not tested on baseline
-                                    if UNK_src in mapping and UNK_src.decode('utf-8')[0].islower():
-                                        new_trans_words.append(mapping[UNK_src])
-                                    else:
-                                        new_trans_words.append(UNK_src)
-                            else:
-                                new_trans_words.append(trans_words[j])
-                        to_write = ''
-                        for j, word in enumerate(new_trans_words):
-                            to_write = to_write + word
-                            if j < len(new_trans_words) - 1:
-                                to_write += ' '
+
+                        src_seqs.append(src_seq)
+                        src_word_seqs.append(src_words)
+                        trg_seqs.append(trans_seq)
+                        trg_word_seqs.append(trans_words)
                         if args.n_best:
-                            print >>new_trans_file, full_trans_line[0].strip() + ' ||| ' + to_write + ' ||| ' + full_trans_line[2].strip()
-                        else:
-                            print >>new_trans_file, to_write
+                            full_trans_lines.append(full_trans_line)
+
+                    # Out of loop
+                    hard_alignments = compute_alignment(src_seqs, trg_seqs, alignment_fns, args.batchsize)
+                    replace_unknown_words(src_word_seqs, trg_seqs, trg_word_seqs,
+                                          hard_alignments, heuristic, mapping, unk_id,
+                                          new_trans_file, args.n_best, full_trans_lines)
     else:
         raise NotImplementedError
 
