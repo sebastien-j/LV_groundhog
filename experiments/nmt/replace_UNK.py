@@ -87,8 +87,8 @@ def compute_alignment(src_seqs, trg_seqs, alignment_fns, batchsize):
             alignments += numpy.asarray(alignment_fns[j](x, y, x_mask, y_mask)[0])
         alignments[:,x_lengths-1,range(x.shape[1])] = 0. # Put source <eos> score to 0.
         full_alignments = numpy.concatenate((full_alignments, alignments), axis=2)
-        hard_alignments = numpy.argmax(full_alignments, axis=1) # trg_len x num_examples
 
+    hard_alignments = numpy.argmax(full_alignments, axis=1) # trg_len x num_examples
     return hard_alignments
 
 def replace_unknown_words(src_word_seqs, trg_seqs, trg_word_seqs, hard_alignments,
