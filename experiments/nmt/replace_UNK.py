@@ -275,7 +275,7 @@ def main():
                 seq, _ = parse_input(state, word2idx_src, seqin) # seq is the ndarray of indices
                 indices = []
                 for elt in seq[:-1]: # Exclude the EOL token
-                    if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                    if elt != 1 and elt in topn: # Exclude OOV (1 will not be a key of topn)
                         indices.extend(topn[elt]) # Add topn best unigram translations for each source word
                 update_dicts(indices, d, D, C, args.num_common)
                 if (i % args.change_every) == 0 and args.change_every > 0 and i > 0:

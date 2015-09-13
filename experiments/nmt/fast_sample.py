@@ -357,7 +357,7 @@ def main():
                 seq, parsed_in = parse_input(state, indx_word, seqin, idx2word=idict_src) # seq is the ndarray of indices
                 indices = []
                 for elt in seq[:-1]: # Exclude the EOL token
-                    if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                    if elt != 1 and elt in topn: # Exclude OOV (1 will not be a key of topn)
                         indices.extend(topn[elt]) # Add topn best unigram translations for each source word
                 output = update_dicts(indices, d, D, C, args.num_common)
                 if (i % args.change_every) == 0 and args.change_every > 0 and i > 0:
@@ -418,7 +418,7 @@ def main():
                 # Extract the indices you need
                 indices = set()
                 for elt in seq[:-1]: # Exclude the EOL token
-                    if elt != 1: # Exclude OOV (1 will not be a key of topn)
+                    if elt != 1 and elt in topn: # Exclude OOV (1 will not be a key of topn)
                         indices = indices.union(topn[elt]) # Add topn best unigram translations for each source word
                 num_common_words = args.num_common
                 while True:
